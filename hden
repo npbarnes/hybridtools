@@ -1,0 +1,77 @@
+#!/usr/bin/python
+import numpy as np
+from HybridReader2 import HybridReader2 as hr
+import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
+import matplotlib.ticker as plticker
+import colormaps as cmaps
+from sys import argv
+from scipy.interpolate import griddata
+
+def streams(xx,yy,u,v,nx,ny):
+    x = np.linspace(xx.min(), xx.max(), nx)
+    y = np.linspace(yy.min(), yy.max(), ny)
+
+    xi, yi = np.meshgrid(x,y)
+
+    #then, interpolate your data onto this grid:
+
+    px = xx.flatten()
+    py = yy.flatten()
+    pu = u.flatten()
+    pv = v.flatten()
+
+    gu = griddata(zip(px,py), pu, (xi,yi))
+    gv = griddata(zip(px,py), pv, (xi,yi))
+
+    gspeed = griddata(zip(px,py), np.sqrt(pu**2+pv**2), (xi,yi))
+
+    #now, you can use x, y, gu, gv and gspeed in streamplot:
+    return x,y,gu,gv,gspeed
+
+plt.register_cmap(name='viridis', cmap=cmaps.viridis)
+
+den = hr(argv[1],'np')
+ddata = den.get_last_timestep()[-1]
+
+qx = den.para['qx']
+qy = den.para['qy']
+qzrange = den.para['qzrange']
+try:
+    po = den.para['pluto_offset']
+except KeyError:
+    print('Check pluto_offset. Assumed to be 30')
+    po = 30
+
+Rp = 1187 # km
+
+qx = (qx - qx[len(qx)/2 + po])/Rp
+qy = (qy - qy[len(qy)/2])/Rp
+
+cz = den.para['zrange']/2
+
+X,Y = np.meshgrid(qx,qy)
+
+plt.pcolormesh(X,Y,ddata[:,:,cz].transpose(), cmap=cmaps.viridis, vmin=0, vmax=10*pow(10,13))
+plt.colorbar()
+
+#vel = hr(argv[1],'up')
+#vdata = vel.get_last_timestep()[-1]
+#
+#x,y,gu,gv,speed = streams(X,Y,vdata[:,:,cz,0],vdata[:,:,cz,1],vel.para['nx'],vel.para['ny'])
+#lw = speed/speed.max()
+#s = 18
+#plt.quiver(X[::s,::s],Y[::s,::s],vdata[::s,::s,cz,0].transpose(),vdata[::s,::s,cz,1].transpose(), color='white', minlength=0, scale=15000)
+#
+plt.xlim(qx[0],qx[-1])
+plt.ylim(qy[0],qy[-1])
+
+plt.title('Density')
+plt.xlabel('X ($R_p$)')
+plt.ylabel('Y ($R_p$)')
+loc = plticker.MultipleLocator(base=20)
+ax = plt.gca()
+#ax.xaxis.set_major_locator(loc)
+ax.yaxis.set_major_locator(loc)
+
+plt.show()

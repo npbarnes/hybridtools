@@ -1,0 +1,8 @@
+#!/usr/bin/python
+from pprint import pprint
+from HybridParams import HybridParams
+import sys
+
+p = sys.argv[1]
+para = HybridParams(p)
+pprint(para._getParameters())
