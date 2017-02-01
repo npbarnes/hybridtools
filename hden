@@ -7,39 +7,64 @@ import colormaps as cmaps
 from sys import argv
 plt.register_cmap(name='viridis', cmap=cmaps.viridis)
 
+# Get density data
 den = hr(argv[1],'np')
 ddata = den.get_last_timestep()[-1]
 
+# Get grid spacing
 qx = den.para['qx']
 qy = den.para['qy']
 qzrange = den.para['qzrange']
+
+# Find the center index of the grid
+cx = den.para['nx']/2
+cy = den.para['ny']/2
+cz = den.para['zrange']/2
+
+# the offset of pluto from the center isn't always availible
 try:
     po = den.para['pluto_offset']
 except KeyError:
     print('Check pluto_offset. Assumed to be 30')
     po = 30
 
-Rp = 1187 # km
+# Set constatnt for Pluto radius 
+Rp = 1187. # km
 
+# Shift grid so that Pluto lies at (0,0,0) and convert from km to Rp
 qx = (qx - qx[len(qx)/2 + po])/Rp
 qy = (qy - qy[len(qy)/2])/Rp
+qzrange = (qzrange - qzrange[len(qzrange)/2])/Rp
 
-cz = den.para['zrange']/2
-
+# Make X-Y plot
 X,Y = np.meshgrid(qx,qy)
-
 plt.pcolormesh(X,Y,ddata[:,:,cz].transpose(), cmap=cmaps.viridis, vmin=0, vmax=10*pow(10,13))
 plt.colorbar()
-
 plt.xlim(qx[0],qx[-1])
 plt.ylim(qy[0],qy[-1])
-
 plt.title('Density')
 plt.xlabel('X ($R_p$)')
 plt.ylabel('Y ($R_p$)')
 loc = plticker.MultipleLocator(base=20)
 ax = plt.gca()
-#ax.xaxis.set_major_locator(loc)
 ax.yaxis.set_major_locator(loc)
+
+
+
+# Make X-Z plot
+plt.figure()
+X,Z = np.meshgrid(qx,qzrange)
+
+plt.pcolormesh(X,Z,ddata[:,cy,:].transpose(), cmap=cmaps.viridis, vmin=0, vmax=10*pow(10,13))
+plt.colorbar()
+plt.xlim(qx[0],qx[-1])
+plt.ylim(qzrange[0],qzrange[-1])
+plt.title('Density')
+plt.xlabel('X ($R_p$)')
+plt.ylabel('Z ($R_p$)')
+loc = plticker.MultipleLocator(base=20)
+ax = plt.gca()
+ax.yaxis.set_major_locator(loc)
+
 
 plt.show()
