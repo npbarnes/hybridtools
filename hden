@@ -2,13 +2,9 @@
 import numpy as np
 from HybridReader2 import HybridReader2 as hr
 import matplotlib.pyplot as plt
-from matplotlib.colors import Normalize
 import matplotlib.ticker as plticker
 import colormaps as cmaps
 from sys import argv
-from scipy.interpolate import griddata
-
-
 plt.register_cmap(name='viridis', cmap=cmaps.viridis)
 
 den = hr(argv[1],'np')
