@@ -1,1 +1,8 @@
-/home/nathan/Code/new/Hybrid_3d_buf/make-oldstyle
+#!/bin/bash
+
+mkdir oldstyle
+ln -s $(pwd)/grid/* $(pwd)/oldstyle/
+ln -s $(pwd)/particle/* $(pwd)/oldstyle/
+ln -s $(pwd)/para.dat $(pwd)/oldstyle/
+ln -s $(pwd)/inputs.dat $(pwd)/oldstyle/
+ln -s $(pwd)/c.coord.dat $(pwd)/oldstyle/
