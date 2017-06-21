@@ -1,0 +1,70 @@
+#!/usr/bin/python
+import os
+import sys
+from math import log
+from FortranFile import FortranFile
+
+print "This operation will delete data."
+print "Are you sure you want to do this? (yes/no)"
+answer = raw_input()
+if answer != 'yes':
+    print "exiting"
+    sys.exit()
+
+print "Working..."
+
+def get_dir_size(path):
+    total = 0
+    for dirpath, dirnames, filenames in os.walk(path):
+        for f in filenames:
+            total += os.path.getsize(os.path.join(dirpath, f))
+    return total
+
+cwd = os.getcwd()
+
+grid_dir = os.path.join(cwd,'databig','grid')
+part_dir = os.path.join(cwd,'databig','particle')
+
+before_size = get_dir_size(grid_dir) + get_dir_size(part_dir)
+
+for directory in [grid_dir, part_dir]:
+    for filename in os.listdir(directory):
+        if filename.startswith('c.') and filename.endswith('.dat'):
+            original = os.path.join(directory, filename)
+            tmp_new = os.path.join(directory, filename+'#')
+            tmp_old = os.path.join(directory, filename+'~')
+
+            # Get the last timestep from non-empty files
+            with FortranFile(original) as f:
+                f.seek(0, os.SEEK_END)
+                try:
+                    data = f.readBackRecord()
+                except IOError:
+                    continue
+                step = f.readBackRecord()
+
+            # Safely overwrite the original with just the records from the last timestep
+            with FortranFile(tmp_new, mode='w') as f:
+                f.writeRecord(step)
+                f.writeRecord(data)
+            os.rename(original, tmp_old)
+            os.rename(tmp_new, original)
+            os.remove(tmp_old)
+
+after_size = get_dir_size(grid_dir) + get_dir_size(part_dir)
+saved = before_size - after_size
+
+def human_size(num_bytes):
+    unit_list = zip(['bytes', 'kB', 'MB', 'GB', 'TB', 'PB'], [0, 0, 1, 2, 2, 2])
+    if num_bytes == 0:
+        return '0 bytes'
+    elif num_bytes == 1:
+        return '1 byte'
+    elif num_bytes > 1:
+        exponent = min(int(log(num_bytes,1024)), len(unit_list) - 1)
+        quotient = float(num_bytes) / 1024**exponent
+        unit, num_decimals = unit_list[exponent]
+        format_string = '{:.%sf} {}' % (num_decimals)
+        return format_string.format(quotient, unit)
+
+print "You saved " + human_size(saved)
