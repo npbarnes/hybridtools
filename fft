@@ -1,0 +1,22 @@
+#!/usr/bin/python
+from scipy.fftpack import fft
+from sys import argv
+import HybridHelper as hh
+import matplotlib.pyplot as plt
+
+data, info = hh.last_timestep_setup(argv)
+
+x,y,z = info['cx'], info['cy'], info['cz']
+ft = fft(data[x:, y, z,:], axis=0)
+plt.figure()
+plt.plot(data[:x,y,z,:])
+plt.title('data')
+
+plt.figure()
+plt.plot(ft.real)
+plt.title('ftreal')
+plt.figure()
+plt.plot(ft.imag)
+plt.title('ftimag')
+
+plt.show()
