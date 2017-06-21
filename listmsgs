@@ -1,0 +1,25 @@
+#!/usr/bin/python3
+import os
+import sys
+
+def getallmsgs():
+    cwd = os.getcwd()
+
+    msgfs = []
+    for (dirpath,dirnames,filenames) in os.walk(cwd):
+        for name in filenames:
+            if name == 'message':
+                msgfs.append(os.path.join(dirpath,name))
+
+    def getmsg(f):
+        fh = open(f)
+        return fh.read()
+
+    msgs = list(map(getmsg,msgfs))
+
+    return list(zip(msgfs, msgs))
+
+for (f,msg) in getallmsgs():
+    print(f)
+    print('\t' + msg)
+
