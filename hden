@@ -3,12 +3,16 @@ import numpy as np
 from HybridReader2 import HybridReader2 as hr
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
+from matplotlib.colors import Normalize, LogNorm, SymLogNorm
 import colormaps as cmaps
 from sys import argv
+from bisect import bisect
+
 plt.register_cmap(name='viridis', cmap=cmaps.viridis)
 
 # Get density data
 den = hr(argv[1],'np')
+#den.repair_and_reset()
 ddata = den.get_last_timestep()[-1]
 
 # Get grid spacing
@@ -25,7 +29,7 @@ cz = den.para['zrange']/2
 try:
     po = den.para['pluto_offset']
 except KeyError:
-    print('Check pluto_offset. Assumed to be 30')
+    print("Couldn't get pluto_offset. It has been assumed to be 30, but it probably isn't.")
     po = 30
 
 # Set constatnt for Pluto radius 
@@ -38,13 +42,14 @@ qzrange = (qzrange - qzrange[len(qzrange)/2])/Rp
 
 # Make X-Y plot
 X,Y = np.meshgrid(qx,qy)
-plt.pcolormesh(X,Y,ddata[:,:,cz].transpose(), cmap=cmaps.viridis, vmin=0, vmax=10*pow(10,13))
+plt.pcolormesh(X,Y,ddata[:,:,cz].transpose(), cmap=cmaps.viridis, norm=SymLogNorm(1))
 plt.colorbar()
 plt.xlim(qx[0],qx[-1])
 plt.ylim(qy[0],qy[-1])
 plt.title('Density')
 plt.xlabel('X ($R_p$)')
 plt.ylabel('Y ($R_p$)')
+plt.gca().set_aspect('equal') # equal aspect ratio
 loc = plticker.MultipleLocator(base=20)
 ax = plt.gca()
 ax.yaxis.set_major_locator(loc)
@@ -55,16 +60,34 @@ ax.yaxis.set_major_locator(loc)
 plt.figure()
 X,Z = np.meshgrid(qx,qzrange)
 
-plt.pcolormesh(X,Z,ddata[:,cy,:].transpose(), cmap=cmaps.viridis, vmin=0, vmax=10*pow(10,13))
+plt.pcolormesh(X,Z,ddata[:,cy,:].transpose(), cmap=cmaps.viridis, norm=SymLogNorm(1))
 plt.colorbar()
 plt.xlim(qx[0],qx[-1])
 plt.ylim(qzrange[0],qzrange[-1])
 plt.title('Density')
 plt.xlabel('X ($R_p$)')
 plt.ylabel('Z ($R_p$)')
+plt.gca().set_aspect('equal') # equal aspect ratio
 loc = plticker.MultipleLocator(base=20)
 ax = plt.gca()
 ax.yaxis.set_major_locator(loc)
 
+# Make Y-Z plot
+xind = bisect(qx,-50)
+
+plt.figure()
+Y,Z = np.meshgrid(qy,qzrange)
+
+plt.pcolormesh(Y,Z,ddata[xind,:,:].transpose(), cmap=cmaps.viridis, norm=SymLogNorm(1))
+plt.colorbar()
+plt.xlim(qy[0],qy[-1])
+plt.ylim(qzrange[0],qzrange[-1])
+plt.title('Density')
+plt.xlabel('Y ($R_p$)')
+plt.ylabel('Z ($R_p$)')
+plt.gca().set_aspect('equal') # equal aspect ratio
+loc = plticker.MultipleLocator(base=20)
+ax = plt.gca()
+ax.yaxis.set_major_locator(loc)
 
 plt.show()
