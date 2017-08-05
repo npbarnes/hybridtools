@@ -1,15 +1,19 @@
 #!/usr/bin/python3
 import os
 import sys
+import re
+import time
+import textwrap
 
 def getallmsgs():
     cwd = os.getcwd()
+    if '/data' not in cwd:
+        raise RuntimeError('You need to start in the data folder or one of its subfolders')
 
     msgfs = []
     for (dirpath,dirnames,filenames) in os.walk(cwd):
-        for name in filenames:
-            if name == 'message':
-                msgfs.append(os.path.join(dirpath,name))
+        if 'message' in filenames:
+            msgfs.append(os.path.join(dirpath,'message'))
 
     def getmsg(f):
         fh = open(f)
@@ -19,7 +23,31 @@ def getallmsgs():
 
     return list(zip(msgfs, msgs))
 
-for (f,msg) in getallmsgs():
-    print(f)
-    print('\t' + msg)
+def getdatematch(string):
+    """Return date string"""
+    return re.search('data/(.+)/pluto',string)
+def getdatestring(string):
+    match = getdatematch(string)
+    return match.group(1)
+def getdate(string):
+    return time.strptime(getdatestring(string), '%Y-%a-%b-%d')
 
+def getplutomatch(string):
+    return re.search('pluto-(\d+)',string)
+def getplutonumber(string):
+    match = getplutomatch(string)
+    return int(match.group(1))
+def getplutostring(string):
+    match = getplutomatch(string)
+    return match.group(0)
+
+def sortkey(item):
+    date = getdate(item[0])
+    pluto = getplutonumber(item[0])
+    return (date,pluto)
+
+lst = getallmsgs()
+lst.sort(key=sortkey)
+for (f,msg) in lst:
+    print(getdatestring(f) + ' : ' + getplutostring(f))
+    print(textwrap.fill(msg, width=80, initial_indent='    ', subsequent_indent='    '))
