@@ -12,7 +12,14 @@ plt.register_cmap(name='plasma', cmap=cmaps.plasma)
 
 # Get density data
 den = hr(argv[1],argv[2])
-ddata = den.get_last_timestep()[-1]
+
+if len(argv) == 5:
+    for n in range(int(argv[-1])-1):
+        den.skip_next_timestep()
+    ddata = den.get_next_timestep()[-1]
+else:
+    ddata = den.get_last_timestep()[-1]
+
 if len(ddata.shape) == 4:
     ddata = ddata[:,:,:,argv[3]]
 
