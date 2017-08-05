@@ -11,7 +11,7 @@ plt.register_cmap(name='viridis', cmap=cmaps.viridis)
 
 
 # Get density data
-den = hr(argv[1],'np')
+den = hr(argv[1],'np', double=False)
 ddata = den.get_last_timestep()[-1]
 
 # Get magnetic field data
@@ -57,13 +57,13 @@ plt.pcolormesh(X,Y,ddata[:,:,cz].T, cmap=cmaps.viridis, norm=LogNorm())
 plt.colorbar()
 
 def top_bot():
-    n = 5
-    l = 2*len(qx)/n
+    n = 1
+    l = 2*len(qx)/n-10
     seed_points = np.empty((l,2))
-    seed_points[:l/2,0] = qx[::n]
-    seed_points[:l/2,1] = qy[len(qy)/2+10]
-    seed_points[l/2:,0] = qx[::n]
-    seed_points[l/2:,1] = qy[len(qy)/2-10]
+    seed_points[:l/2,0] = qx[:-5:n]
+    seed_points[:l/2,1] = qy[len(qy)/2+5]
+    seed_points[l/2:,0] = qx[:-5:n]
+    seed_points[l/2:,1] = qy[len(qy)/2-5]
     return seed_points
 
 def circle(r, n):
