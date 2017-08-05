@@ -13,7 +13,13 @@ plt.register_cmap(name='viridis', cmap=cmaps.viridis)
 # Get density data
 den = hr(argv[1],'np')
 #den.repair_and_reset()
-ddata = den.get_last_timestep()[-1]
+
+if int(argv[-1]) == -1:
+    ddata = den.get_last_timestep()[-1]
+else:
+    for n in range(int(argv[-1])-1):
+        den.skip_next_timestep()
+    ddata = den.get_next_timestep()[-1]
 
 # Get grid spacing
 qx = den.para['qx']
@@ -42,7 +48,7 @@ qzrange = (qzrange - qzrange[len(qzrange)/2])/Rp
 
 # Make X-Y plot
 X,Y = np.meshgrid(qx,qy)
-plt.pcolormesh(X,Y,ddata[:,:,cz].transpose(), cmap=cmaps.viridis, norm=SymLogNorm(1))
+plt.pcolormesh(X,Y,ddata[:,:,cz].transpose(), cmap=cmaps.viridis, norm=SymLogNorm(1), vmax=1e16)
 plt.colorbar()
 plt.xlim(qx[0],qx[-1])
 plt.ylim(qy[0],qy[-1])
@@ -60,7 +66,7 @@ ax.yaxis.set_major_locator(loc)
 plt.figure()
 X,Z = np.meshgrid(qx,qzrange)
 
-plt.pcolormesh(X,Z,ddata[:,cy,:].transpose(), cmap=cmaps.viridis, norm=SymLogNorm(1))
+plt.pcolormesh(X,Z,ddata[:,cy,:].transpose(), cmap=cmaps.viridis, norm=SymLogNorm(1), vmax=1e16)
 plt.colorbar()
 plt.xlim(qx[0],qx[-1])
 plt.ylim(qzrange[0],qzrange[-1])
