@@ -1,6 +1,9 @@
 #!/usr/bin/python
+import argparse
 import HybridAnimator as ha
-from sys import argv
+from HybridHelper import parser
 
-a = ha.HybridAnimator(argv[1],argv[2])
+args = parser.parse_args()
+
+a = ha.HybridAnimator(args.prefix, args.variable, args.save)
 a.animate()

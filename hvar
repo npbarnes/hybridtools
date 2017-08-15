@@ -1,27 +1,72 @@
 #!/usr/bin/python
 import numpy as np
 from HybridReader2 import HybridReader2 as hr
+from HybridHelper import parser
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
 from matplotlib.colors import Normalize, SymLogNorm
 import colormaps as cmaps
+plt.register_cmap(name='viridis', cmap=cmaps.viridis)
+plt.register_cmap(name='plasma', cmap=cmaps.plasma)
 from sys import argv
 from bisect import bisect
+import argparse
 
-plt.register_cmap(name='plasma', cmap=cmaps.plasma)
+class CoordType(int):
+    """A special integer that lives a double life as a string.
+    Used to input coordinates on the command line and automatically 
+    translate that character into an integer for indexing arrays
+    while maintaining the string representation.
+    """
+    def __new__(cls,c):
+        if c == 'x':
+            return super(CoordType, cls).__new__(cls, 0)
+        elif c == 'y':
+            return super(CoordType, cls).__new__(cls, 1)
+        elif c == 'z':
+            return super(CoordType, cls).__new__(cls, 2)
+        else:
+            raise ValueError("Coordinate must be one of 'x', 'y', or 'z'")
 
-# Get density data
-den = hr(argv[1],argv[2])
+    def __repr__(self):
+        if self == 0:
+            return "CoordType('x')"
+        elif self == 1:
+            return "CoordType('y')"
+        elif self == 2:
+            return "CoordType('z')"
+        else:
+            raise ValueError
 
-if len(argv) == 5:
-    for n in range(int(argv[-1])-1):
+    def __str__(self):
+        if self == 0:
+            return 'x'
+        elif self == 1:
+            return 'y'
+        elif self == 2:
+            return 'z'
+        else:
+            raise ValueError
+
+parser.add_argument('--colormap', choices=['viridis', 'plasma'], default='viridis', help='Choose a colormap for the plot')
+parser.add_argument('coordinate', type=CoordType, choices=[0,1,2], nargs='?', help='Choose which coordinate to use for vector data')
+args = parser.parse_args()
+
+den = hr(args.prefix,args.variable)
+if den.isScalar and args.coordinate is not None:
+    raise Exception("Don't specify a coordinate for scalars.")
+if not den.isScalar and args.coordinate is None:
+    raise Exception("Must specify a coordinate for vectors.")
+
+if args.stepnum == -1:
+    ddata = den.get_last_timestep()[-1]
+else:
+    for n in range(args.stepnum-1):
         den.skip_next_timestep()
     ddata = den.get_next_timestep()[-1]
-else:
-    ddata = den.get_last_timestep()[-1]
 
-if len(ddata.shape) == 4:
-    ddata = ddata[:,:,:,argv[3]]
+if not den.isScalar:
+    ddata = ddata[:,:,:,args.coordinate]
 
 # Get grid spacing
 qx = den.para['qx']
@@ -48,11 +93,14 @@ qx = (qx - qx[len(qx)/2 + po])/Rp
 qy = (qy - qy[len(qy)/2])/Rp
 qzrange = (qzrange - qzrange[len(qzrange)/2])/Rp
 
-title = str(argv[2]) + ' ' + str(argv[3])
+if den.isScalar:
+    title = args.variable
+else:
+    title = '{} {}'.format(args.variable,args.coordinate)
 
 # Make X-Y plot
 X,Y = np.meshgrid(qx,qy)
-plt.pcolormesh(X,Y,ddata[:,:,cz].transpose(), cmap=cmaps.plasma, norm=SymLogNorm(0.001))
+plt.pcolormesh(X,Y,ddata[:,:,cz].transpose(), cmap=args.colormap, norm=SymLogNorm(0.001))
 plt.colorbar()
 plt.xlim(qx[0],qx[-1])
 plt.ylim(qy[0],qy[-1])
@@ -70,7 +118,7 @@ ax.yaxis.set_major_locator(loc)
 plt.figure()
 X,Z = np.meshgrid(qx,qzrange)
 
-plt.pcolormesh(X,Z,ddata[:,cy,:].transpose(), cmap=cmaps.plasma, norm=SymLogNorm(0.001))
+plt.pcolormesh(X,Z,ddata[:,cy,:].transpose(), cmap=args.colormap, norm=SymLogNorm(0.001))
 plt.colorbar()
 plt.xlim(qx[0],qx[-1])
 plt.ylim(qzrange[0],qzrange[-1])
@@ -88,7 +136,7 @@ xind = bisect(qx,0)
 plt.figure()
 Y,Z = np.meshgrid(qy,qzrange)
 
-plt.pcolormesh(Y,Z,ddata[-1,:,:].transpose(), cmap=cmaps.plasma, norm=SymLogNorm(0.001))
+plt.pcolormesh(Y,Z,ddata[-1,:,:].transpose(), cmap=args.colormap, norm=SymLogNorm(0.001))
 plt.colorbar()
 plt.xlim(qy[0],qy[-1])
 plt.ylim(qzrange[0],qzrange[-1])

@@ -2,10 +2,11 @@ import argparse
 import numpy as np
 from HybridReader2 import HybridReader2 as hr
 
-parser = argparse.ArgumentParser(add_help=False)
+parser = argparse.ArgumentParser()
 parser.add_argument('-p','--prefix', dest='prefix', default='databig', help='Name of the datafolder')
 parser.add_argument('-v','--variable', dest='variable', default='np', help='Name of the variable whose data will be read')
 parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1, help='The specific step number to read')
+parser.add_argument('--save', action='store_true', help='Set flag to save instead of displaying')
 
 def convert_sim_coords_to_pluto_coords(hybrid_object):
     # Get grid spacing
