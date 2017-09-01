@@ -12,44 +12,7 @@ from sys import argv
 from bisect import bisect
 import argparse
 
-class CoordType(int):
-    """A special integer that lives a double life as a string.
-    Used to input coordinates on the command line and automatically 
-    translate that character into an integer for indexing arrays
-    while maintaining the string representation.
-    """
-    def __new__(cls,c):
-        if c == 'x':
-            return super(CoordType, cls).__new__(cls, 0)
-        elif c == 'y':
-            return super(CoordType, cls).__new__(cls, 1)
-        elif c == 'z':
-            return super(CoordType, cls).__new__(cls, 2)
-        else:
-            raise ValueError("Coordinate must be one of 'x', 'y', or 'z'")
-
-    def __repr__(self):
-        if self == 0:
-            return "CoordType('x')"
-        elif self == 1:
-            return "CoordType('y')"
-        elif self == 2:
-            return "CoordType('z')"
-        else:
-            raise ValueError
-
-    def __str__(self):
-        if self == 0:
-            return 'x'
-        elif self == 1:
-            return 'y'
-        elif self == 2:
-            return 'z'
-        else:
-            raise ValueError
-
-parser.add_argument('--colormap', choices=['viridis', 'plasma'], default='viridis', help='Choose a colormap for the plot')
-parser.add_argument('coordinate', type=CoordType, choices=[0,1,2], nargs='?', help='Choose which coordinate to use for vector data')
+parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1, help='The specific step number to read')
 args = parser.parse_args()
 
 den = hr(args.prefix,args.variable)
@@ -58,12 +21,7 @@ if den.isScalar and args.coordinate is not None:
 if not den.isScalar and args.coordinate is None:
     raise Exception("Must specify a coordinate for vectors.")
 
-if args.stepnum == -1:
-    ddata = den.get_last_timestep()[-1]
-else:
-    for n in range(args.stepnum-1):
-        den.skip_next_timestep()
-    ddata = den.get_next_timestep()[-1]
+ddata = den.get_timestep(args.stepnum)[-1]
 
 if not den.isScalar:
     ddata = ddata[:,:,:,args.coordinate]

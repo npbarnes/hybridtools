@@ -1,5 +1,8 @@
-from os import argv
+#!/usr/bin/python
+from HybridHelper import parser
 from HybridReader2 import HybridReader2 as hr
 
-hybrid_object = hr(argv[1], argv[2], mode='r+')
+args = parser.parse_args()
+
+hybrid_object = hr(args.prefix, args.variable, mode='r+')
 hybrid_object.repair_and_reset()

@@ -2,7 +2,7 @@
 import os
 import sys
 from math import log
-from FortranFile import FortranFile
+from FortranFile import FortranFile, IntegrityError
 
 print "This operation will delete data."
 print "Are you sure you want to do this? (yes/no)"
@@ -50,6 +50,13 @@ part_dir = os.path.join(cwd,'databig','particle')
 
 before_size = get_dir_size(grid_dir) + get_dir_size(part_dir)
 
+def get_last_step_and_data(filename):
+    with FortranFile(filename) as f:
+        f.seek(0, os.SEEK_END)
+        data = f.readBackRecord()
+        step = f.readBackRecord()
+    return step, data
+
 for directory in [grid_dir, part_dir]:
     for filename in os.listdir(directory):
         if filename.startswith('c.') and filename.endswith('.dat'):
@@ -59,10 +66,12 @@ for directory in [grid_dir, part_dir]:
 
             # Get the last timestep from non-empty files
             if os.path.getsize(original) != 0:
-                with FortranFile(original) as f:
-                    f.seek(0, os.SEEK_END)
-                    data = f.readBackRecord()
-                    step = f.readBackRecord()
+                try:
+                    step, data = get_last_step_and_data(original)
+                except IntegrityError:
+                    with FortranFile(original, mode='r+') as f:
+                        f.repair()
+                    step, data = get_last_step_and_data(original)
 
                 # Safely overwrite the original with just the records from the last timestep
                 with FortranFile(tmp_new, mode='w') as f:

@@ -2,11 +2,48 @@ import argparse
 import numpy as np
 from HybridReader2 import HybridReader2 as hr
 
+class CoordType(int):
+    """A special integer that lives a double life as a string.
+    Used to input coordinates on the command line and automatically 
+    translate that character into an integer for indexing arrays
+    while maintaining the string representation.
+    """
+    def __new__(cls,c):
+        if c == 'x':
+            return super(CoordType, cls).__new__(cls, 0)
+        elif c == 'y':
+            return super(CoordType, cls).__new__(cls, 1)
+        elif c == 'z':
+            return super(CoordType, cls).__new__(cls, 2)
+        else:
+            raise ValueError("Coordinate must be one of 'x', 'y', or 'z'")
+
+    def __repr__(self):
+        if self == 0:
+            return "CoordType('x')"
+        elif self == 1:
+            return "CoordType('y')"
+        elif self == 2:
+            return "CoordType('z')"
+        else:
+            raise ValueError
+
+    def __str__(self):
+        if self == 0:
+            return 'x'
+        elif self == 1:
+            return 'y'
+        elif self == 2:
+            return 'z'
+        else:
+            raise ValueError
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-p','--prefix', dest='prefix', default='databig', help='Name of the datafolder')
 parser.add_argument('-v','--variable', dest='variable', default='np', help='Name of the variable whose data will be read')
-parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1, help='The specific step number to read')
+parser.add_argument('--colormap', choices=['viridis', 'plasma'], default='viridis', help='Choose a colormap for the plot')
 parser.add_argument('--save', action='store_true', help='Set flag to save instead of displaying')
+parser.add_argument('coordinate', type=CoordType, choices=[0,1,2], nargs='?', help='Choose which coordinate to use for vector data')
 
 def convert_sim_coords_to_pluto_coords(hybrid_object):
     # Get grid spacing
