@@ -59,7 +59,7 @@ def get_last_step_and_data(filename):
 
 for directory in [grid_dir, part_dir]:
     for filename in os.listdir(directory):
-        if filename.startswith('c.') and filename.endswith('.dat'):
+        if filename.startswith('c.') and filename.endswith('.dat') and 'outflowing' not in filename:
             original = os.path.join(directory, filename)
             tmp_new = os.path.join(directory, filename+'#')
             tmp_old = os.path.join(directory, filename+'~')
