@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+from matplotlib.colors import LogNorm, SymLogNorm
 from HybridReader2 import HybridReader2 as hr
 
 class CoordType(int):
@@ -38,12 +39,81 @@ class CoordType(int):
         else:
             raise ValueError
 
+def LowerString(string):
+    return string.lower()
+
+class Variable:
+    def __init__(self, name, coordinate=None):
+        self.name = name
+        self.coordinate = CoordType(coordinate) if coordinate is not None else None
+
+    def __repr__(self):
+        if self.coordinate is not None:
+            return 'Variable(' + self.name + ',' + str(self.coordinate) + ')'
+        else:
+            return 'Variable(' + self.name + ')'
+
+    def __str__(self):
+        if self.coordinate is not None:
+            return self.name + ' ' + str(self.coordinate)
+        else:
+            return self.name
+
+class VariableAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError('nargs not allowed with VariableAction')
+        super(VariableAction, self).__init__(option_strings, dest, nargs='+', **kwargs)
+    def __call__(self, parser, namespace, values, option_string=None):
+        if len(values) == 1:
+            setattr(namespace, self.dest, Variable(values[0]))
+        elif len(values) == 2:
+            setattr(namespace, self.dest, Variable(values[0], values[1]))
+        else:
+            raise argparse.ArgumentError(option_string, 'There must be exactly one or two values consumed')
+
+class NormAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError('nargs not allowed with NormAction')
+        super(NormAction, self).__init__(option_strings, dest, nargs='+', **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values[0] == 'linear':
+            if len(values) != 1:
+                raise argparse.ArgumentError(option_string, 'Options for the linear norm are not supported')
+            setattr(namespace, self.dest, None)
+
+        elif values[0] == 'log':
+            if len(values) != 1:
+                raise argparse.ArgumentError(option_string, 'Options for the log norm are not supported')
+            setattr(namespace, self.dest, LogNorm())
+
+        elif values[0] == 'symlog':
+            if len(values) > 2:
+                raise argparse.ArgumentError(option_string, 
+                        'Optionally specify the linear range, otherwise a default will be used')
+            if len(values) == 2:
+                setattr(namespace, self.dest, SymLogNorm(int(values[1])))
+            elif len(values) == 1:
+                setattr(namespace, self.dest, SymLogNorm(0.001))
+
+        else:
+            raise argparse.ArgumentError(option_string, 'Choose between linear, log, or symlog')
+
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-p','--prefix', dest='prefix', default='databig', help='Name of the datafolder')
-parser.add_argument('-v','--variable', dest='variable', default='np', help='Name of the variable whose data will be read')
-parser.add_argument('--colormap', choices=['viridis', 'plasma'], default='viridis', help='Choose a colormap for the plot')
-parser.add_argument('--save', action='store_true', help='Set flag to save instead of displaying')
-parser.add_argument('coordinate', type=CoordType, choices=[0,1,2], nargs='?', help='Choose which coordinate to use for vector data')
+parser.add_argument('-v','--variable', action=VariableAction, dest='variable', required=True,
+        help='Name of the variable whose data will be read')
+
+parser.add_argument('--colormap', default='viridis', help='Choose a colormap for the plot')
+parser.add_argument('--save', nargs='?', default=False, const=True, 
+        help='Set flag to save instead of displaying. Optionally provide a filename.')
+
+parser.add_argument('--norm', type=LowerString, action=NormAction, default='linear',
+                    help='Specify what scale to use')
 
 def convert_sim_coords_to_pluto_coords(hybrid_object):
     # Get grid spacing
