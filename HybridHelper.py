@@ -115,7 +115,7 @@ parser.add_argument('--save', nargs='?', default=False, const=True,
 parser.add_argument('--norm', type=LowerString, action=NormAction, default='linear',
                     help='Specify what scale to use')
 
-def convert_sim_coords_to_pluto_coords(hybrid_object):
+def get_pluto_coords(hybrid_object):
     # Get grid spacing
     qx = hybrid_object.para['qx']
     qy = hybrid_object.para['qy']
