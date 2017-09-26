@@ -5,5 +5,5 @@ from HybridHelper import parser
 
 args = parser.parse_args()
 
-a = ha.HybridAnimator(args.prefix, args.variable, args.coordinate, args.save)
+a = ha.HybridAnimator(args.prefix, args.variable.name, args.variable.coordinate, args.save)
 a.animate()
