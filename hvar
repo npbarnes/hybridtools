@@ -1,74 +1,115 @@
 #!/usr/bin/python
 import numpy as np
 from HybridReader2 import HybridReader2 as hr
-from HybridHelper import parser, get_pluto_coords
+from HybridHelper import parser, gen_plot
 import matplotlib.pyplot as plt
-import matplotlib.ticker as plticker
-from matplotlib.colors import Normalize, SymLogNorm, LogNorm
-import colormaps as cmaps
-plt.register_cmap(name='viridis', cmap=cmaps.viridis)
-plt.register_cmap(name='plasma', cmap=cmaps.plasma)
-from sys import argv
-from bisect import bisect
-import argparse
+
+def var_sanity_check(isScalar, coord):
+    if h.isScalar and args.variable.coordinate is not None:
+        raise ValueError("Don't specify a coordinate for scalars.")
+    if not h.isScalar and args.variable.coordinate is None:
+        raise ValueError("Must specify a coordinate for vectors.")
 
 parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1, help='The specific step number to read')
 args = parser.parse_args()
 
-h = hr(args.prefix,args.variable)
+if args.variable.name == 'beta':
+    hn = hr(args.prefix, 'np')
+    para = hn.para
+    n = hn.get_timestep(args.stepnum)[-1]
+    T = hr(args.prefix, 'temp_p').get_timestep(args.stepnum)[-1]
+    B = hr(args.prefix, 'bt').get_timestep(args.stepnum)[-1]
 
-if h.isScalar and args.variable.coordinate is not None:
-    raise ValueError("Don't specify a coordinate for scalars.")
-if not h.isScalar and args.variable.coordinate is None:
-    raise ValueError("Must specify a coordinate for vectors.")
+    # Convert units
+    n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
+    T = 1.60218e-19 * T                  # eV -> J
+    B = 1.6726219e-27/1.60217662e-19 * B # proton gyrofrequency -> T
 
-data = h.get_timestep(args.stepnum)[-1]
-if not h.isScalar:
-    data = data[:,:,:,args.variable.coordinate]
+    # Compute B \cdot B
+    B2 = np.sum(B**2, axis=-1)
 
-def gen_plot(fig, ax, direction, depth=None):
-    infodict = get_pluto_coords(h)
-    if direction == 'xy':
-        depth = depth if depth is not None else infodict['cz']
-        dslice = data[:,:,depth]
-        x,y = infodict['px'], infodict['py']
-        ax.set_xlabel('X ($R_p$)')
-        ax.set_ylabel('Y ($R_p$)')
+    data = n*T/(B2/(2*1.257e-6))
+elif args.variable.name == 'bmag':
+    hb = hr(args.prefix, 'bt')
+    para = hb.para
+    B = hb.get_timestep(args.stepnum)[-1]
+    B = 1.6726219e-27/1.60217662e-19 * B # proton gyrofrequency -> T
+    Bmag = np.sqrt(np.sum(B**2, axis=-1))
+    data = Bmag
+elif args.variable.name == 'fmach':
+    hn = hr(args.prefix, 'np')
+    para = hn.para
+    n = hn.get_timestep(args.stepnum)[-1]
+    T = hr(args.prefix, 'temp_p').get_timestep(args.stepnum)[-1]
+    B = hr(args.prefix, 'bt').get_timestep(args.stepnum)[-1]
+    u = hr(args.prefix, 'up').get_timestep(args.stepnum)[-1]
+    ux = -u[:,:,:,0]
 
-    elif direction == 'xz':
-        depth = depth if depth is not None else infodict['cy']
-        dslice = data[:,depth,:]
-        x,y = infodict['px'], infodict['pz']
-        ax.set_xlabel('X ($R_p$)')
-        ax.set_ylabel('Z ($R_p$)')
+    n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
+    T = 1.60218e-19 * T                  # eV -> J
+    B = 1.6726219e-27/1.60217662e-19 * B # proton gyrofrequency -> T
 
-    elif direction == 'yz':
-        depth = depth if depth is not None else infodict['cx']
-        dslice = data[depth,:,:]
-        x,y = infodict['py'], infodict['pz']
-        ax.set_xlabel('Y ($R_p$)')
-        ax.set_ylabel('Z ($R_p$)')
+    B2 = np.sum(B**2, axis=-1)
 
-    else:
-        raise ValueError("direction must be one of 'xy', 'xz', or 'yz'")
-    
-    X,Y = np.meshgrid(x, y)
-    mappable = ax.pcolormesh(X,Y,dslice.transpose(), cmap=args.colormap, norm=args.norm)
-    fig.colorbar(mappable, ax=ax)
-    ax.set_xlim(x[0],x[-1])
-    ax.set_ylim(y[0],y[-1])
-    ax.set_title(args.variable)
+    c   = 3e8       # m/s
+    mu0 = 1.257e-6  # H/m
+    mp  = 1.602e-19 # kg
+    gamma = 3
 
-    ax.set_aspect('equal') # equal aspect ratio
+    # Upstream alfven velocity
+    us_va = np.sqrt(B2[-1,0,0]/(mu0*mp*n[-1,0,0]))
+
+    # Upstream ion acousitic speed
+    us_vs = np.sqrt(gamma*T[-1,0,0]/mp)
+
+    # Upstream fastmode velocity
+    us_vf = c*np.sqrt((us_vs**2 + us_va**2)/(c**2 + us_va**2))
+
+    data = ux/us_vf
+
+elif args.variable.name == 'special':
+    hn = hr(args.prefix, 'np')
+    para = hn.para
+    n = hn.get_timestep(args.stepnum)[-1]
+    T = hr(args.prefix, 'temp_p').get_timestep(args.stepnum)[-1]
+    B = hr(args.prefix, 'bt').get_timestep(args.stepnum)[-1]
+
+    # Convert units
+    n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
+    TJ = 1.60218e-19 * T                  # eV -> J
+    B = 1.6726219e-27/1.60217662e-19 * B # proton gyrofrequency -> T
+
+    # Compute B \cdot B
+    B2 = np.sum(B**2, axis=-1)
+
+    #data = n*T/(B2/(2*1.257e-6))
+    data = T
+else:
+    h = hr(args.prefix,args.variable.name)
+    var_sanity_check(h.isScalar, args.variable.coordinate)
+
+    data = h.get_timestep(args.stepnum)[-1]
+    if not h.isScalar:
+        data = data[:,:,:,args.variable.coordinate]
+    para = h.para
+
+
+fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)
+ax1.set_aspect('equal', adjustable='box-forced')
+ax2.set_aspect('equal', adjustable='box-forced')
 
 # Make X-Y plot
-fig = plt.figure()
-ax  = fig.add_subplot(1,1,1)
-gen_plot(fig, ax, 'xy')
+gen_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, cax='None', vmin=args.vmin, vmax=args.vmax)
 
 # Make X-Z plot
-fig = plt.figure()
-ax  = fig.add_subplot(1,1,1)
-gen_plot(fig, ax, 'xz')
+gen_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
 
-plt.show()
+fig.suptitle(args.variable, fontsize=14)
+
+if args.save:
+    if args.save is True:
+        fig.savefig(str(args.variable)+'.png', bbox_inches='tight')
+    else:
+        fig.savefig(args.save, bbox_inches='tight')
+else:
+    plt.show()
