@@ -1,6 +1,11 @@
 import argparse
 import numpy as np
 from matplotlib.colors import LogNorm, SymLogNorm
+import colormaps as cmaps
+import matplotlib.pyplot as plt
+plt.register_cmap(name='viridis', cmap=cmaps.viridis)
+plt.register_cmap(name='plasma', cmap=cmaps.plasma)
+import matplotlib.ticker as plticker
 from HybridReader2 import HybridReader2 as hr
 
 class CoordType(int):
@@ -148,3 +153,41 @@ def get_pluto_coords(para):
 
     return infodict
 
+def gen_plot(fig, ax, data, params, direction, depth=None, cax=None, **kwargs):
+    infodict = get_pluto_coords(params)
+    if direction == 'xy':
+        depth = depth if depth is not None else infodict['cz']
+        dslice = data[:,:,depth]
+        x,y = infodict['px'], infodict['py']
+        ax.set_xlabel('X ($R_p$)')
+        ax.set_ylabel('Y ($R_p$)')
+
+    elif direction == 'xz':
+        depth = depth if depth is not None else infodict['cy']
+        dslice = data[:,depth,:]
+        x,y = infodict['px'], infodict['pz']
+        ax.set_xlabel('X ($R_p$)')
+        ax.set_ylabel('Z ($R_p$)')
+
+    elif direction == 'yz':
+        depth = depth if depth is not None else infodict['cx']
+        dslice = data[depth,:,:]
+        x,y = infodict['py'], infodict['pz']
+        ax.set_xlabel('Y ($R_p$)')
+        ax.set_ylabel('Z ($R_p$)')
+
+    else:
+        raise ValueError("direction must be one of 'xy', 'xz', or 'yz'")
+    
+    X,Y = np.meshgrid(x, y)
+    mappable = ax.pcolormesh(X,Y,dslice.transpose(), **kwargs)
+    if cax is None:
+        cb = fig.colorbar(mappable, ax=ax)
+    elif cax == 'None':
+        pass
+    else:
+        cb = fig.colorbar(mappable, cax=cax)
+
+
+    ax.set_xlim(x[0],x[-1])
+    ax.set_ylim(y[0],y[-1])
