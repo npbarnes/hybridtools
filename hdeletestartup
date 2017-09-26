@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import os
 import sys
-from math import log
+from filesize import dir_size, human_size
 from FortranFile import FortranFile, IntegrityError
 
 print "This operation will delete data."
@@ -13,32 +13,8 @@ if answer != 'yes':
 
 print "Working..."
 
-def get_dir_size(path):
-    """Get the total size of the contents of the specified directory"""
-    total = 0
-    for dirpath, dirnames, filenames in os.walk(path):
-        for f in filenames:
-            total += os.path.getsize(os.path.join(dirpath, f))
-    return total
-
-def human_size(num_bytes):
-    """Take a positive size in bytes and convert to a human readable string"""
-    unit_list = zip(['bytes', 'kB', 'MB', 'GB', 'TB', 'PB'], [0, 0, 1, 2, 2, 2])
-    if num_bytes == 0:
-        return '0 bytes'
-    elif num_bytes == 1:
-        return '1 byte'
-    elif num_bytes > 1:
-        exponent = min(int(log(num_bytes,1024)), len(unit_list) - 1)
-        quotient = float(num_bytes) / 1024**exponent
-        unit, num_decimals = unit_list[exponent]
-        format_string = '{:.%sf} {}' % (num_decimals)
-        return format_string.format(quotient, unit)
-    else:
-        raise ValueError('num_bytes must be positive')
-
-def safe_overwrite(filename, replacement, tmp_path):
-    os.rename(filename, tmp_path)
+def safe_overwrite(original, replacement, tmp_path):
+    os.rename(original, tmp_path)
     os.rename(replacement, original)
     os.remove(tmp_path)
 
@@ -48,7 +24,7 @@ cwd = os.getcwd()
 grid_dir = os.path.join(cwd,'databig','grid')
 part_dir = os.path.join(cwd,'databig','particle')
 
-before_size = get_dir_size(grid_dir) + get_dir_size(part_dir)
+before_size = dir_size(grid_dir) + dir_size(part_dir)
 
 def get_last_step_and_data(filename):
     with FortranFile(filename) as f:
@@ -79,7 +55,7 @@ for directory in [grid_dir, part_dir]:
                     f.writeRecord(data)
                 safe_overwrite(original, tmp_new, tmp_old)
 
-after_size = get_dir_size(grid_dir) + get_dir_size(part_dir)
+after_size = dir_size(grid_dir) + dir_size(part_dir)
 saved = before_size - after_size
 
 

@@ -1,27 +1,36 @@
 #!/usr/bin/python3
 import os
-import sys
 import re
 import time
 import textwrap
+import argparse
+from filesize import dir_size, human_size
 
-def getallmsgs():
+parser = argparse.ArgumentParser()
+parser.add_argument('--by-size', dest='bysize', action='store_true', help='If set, order messages by size of the folder')
+args = parser.parse_args()
+
+def getallmsgdata():
     cwd = os.getcwd()
     if '/data' not in cwd:
         raise RuntimeError('You need to start in the data folder or one of its subfolders')
 
-    msgfs = []
+    msg_dirs = []
+    dir_sizes = []
     for (dirpath,dirnames,filenames) in os.walk(cwd):
         if 'message' in filenames:
-            msgfs.append(os.path.join(dirpath,'message'))
+            msg_dirs.append(os.path.join(dirpath,'message'))
+            dir_sizes.append(dir_size(dirpath))
 
     def getmsg(f):
         fh = open(f)
-        return fh.read()
+        ret = fh.read()
+        fh.close()
+        return ret
 
-    msgs = list(map(getmsg,msgfs))
+    msgs = [getmsg(msg_dir) for msg_dir in msg_dirs]
 
-    return list(zip(msgfs, msgs))
+    return list(zip(msg_dirs, dir_sizes, msgs))
 
 def getdatematch(string):
     """Return date string"""
@@ -41,13 +50,20 @@ def getplutostring(string):
     match = getplutomatch(string)
     return match.group(0)
 
-def sortkey(item):
+def datekey(item):
     date = getdate(item[0])
     pluto = getplutonumber(item[0])
     return (date,pluto)
+def sizekey(item):
+    return item[1]
 
-lst = getallmsgs()
-lst.sort(key=sortkey)
-for (f,msg) in lst:
-    print(getdatestring(f) + ' : ' + getplutostring(f))
-    print(textwrap.fill(msg, width=80, initial_indent='    ', subsequent_indent='    '))
+if __name__ == '__main__':
+    lst = getallmsgdata()
+    if args.bysize:
+        lst.sort(key=sizekey)
+    else:
+        lst.sort(key=datekey)
+
+    for (f,size,msg) in lst:
+        print(getdatestring(f) + '/' + getplutostring(f) + ' : ' + human_size(size))
+        print(textwrap.fill(msg, width=80, initial_indent='    ', subsequent_indent='    '))
