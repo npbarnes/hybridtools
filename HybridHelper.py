@@ -115,20 +115,20 @@ parser.add_argument('--save', nargs='?', default=False, const=True,
 parser.add_argument('--norm', type=LowerString, action=NormAction, default='linear',
                     help='Specify what scale to use')
 
-def get_pluto_coords(hybrid_object):
+def get_pluto_coords(para):
     # Get grid spacing
-    qx = hybrid_object.para['qx']
-    qy = hybrid_object.para['qy']
-    qzrange = hybrid_object.para['qzrange']
+    qx = para['qx']
+    qy = para['qy']
+    qzrange = para['qzrange']
 
     # Find the center index of the grid
-    cx = hybrid_object.para['nx']/2
-    cy = hybrid_object.para['ny']/2
-    cz = hybrid_object.para['zrange']/2
+    cx = para['nx']/2
+    cy = para['ny']/2
+    cz = para['zrange']/2
 
     # the offset of pluto from the center isn't always availible
     try:
-        po = hybrid_object.para['pluto_offset']
+        po = para['pluto_offset']
     except KeyError:
         print("Couldn't get pluto_offset. It has been assumed to be 30, but it probably isn't.")
         po = 30
