@@ -1,0 +1,8 @@
+#!/bin/bash
+hvar -p databig --norm log    -v np                              --save
+hvar -p databig --norm log    -v np_CH4                          --save
+hvar -p databig --norm log    -v temp_p --vmin 1     --vmax 1e3  --save
+hvar -p databig --norm log    -v bmag   --vmin 1e-11 --vmax 1e-7 --save
+#hvar -p databig --norm symlog -v bt x   --vmin 1e-11 --vmax 1e-7 --save
+hvar -p databig --norm log    -v beta   --vmin 1e-2  --vmax 1e4  --save
+hvar -p databig --norm log    -v fmach  --vmin 1     --vmax 650  --save
