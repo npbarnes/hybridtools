@@ -115,6 +115,9 @@ parser.add_argument('--save', nargs='?', default=False, const=True,
 parser.add_argument('--norm', type=LowerString, action=NormAction, default='linear',
                     help='Specify what scale to use')
 
+parser.add_argument('--vmin', type=float, default=None, help='Specify minimum for the colorbar')
+parser.add_argument('--vmax', type=float, default=None, help='Specify maximum for the colorbar')
+
 def get_pluto_coords(para):
     # Get grid spacing
     qx = para['qx']
