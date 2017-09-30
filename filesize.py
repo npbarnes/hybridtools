@@ -8,7 +8,10 @@ def dir_size(path):
     total = 0
     for dirpath, dirnames, filenames in os.walk(path):
         for f in filenames:
-            total += os.path.getsize(os.path.join(dirpath, f))
+            try:
+                total += os.path.getsize(os.path.join(dirpath, f))
+            except FileNotFoundError:
+                pass
     return total
 
 def human_size(num_bytes):
