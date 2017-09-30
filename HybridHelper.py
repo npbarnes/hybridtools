@@ -1,12 +1,14 @@
 import argparse
 import numpy as np
-from matplotlib.colors import LogNorm, SymLogNorm
+from matplotlib.colors import Normalize, LogNorm, SymLogNorm, ListedColormap
 import colormaps as cmaps
 import matplotlib.pyplot as plt
 plt.register_cmap(name='viridis', cmap=cmaps.viridis)
 plt.register_cmap(name='plasma', cmap=cmaps.plasma)
 import matplotlib.ticker as plticker
 from HybridReader2 import HybridReader2 as hr
+
+import warnings
 
 class CoordType(int):
     """A special integer that lives a double life as a string.
@@ -123,6 +125,76 @@ parser.add_argument('--norm', type=LowerString, action=NormAction, default='line
 parser.add_argument('--vmin', type=float, default=None, help='Specify minimum for the colorbar')
 parser.add_argument('--vmax', type=float, default=None, help='Specify maximum for the colorbar')
 
+class MyLogNorm(Normalize):
+    """
+    Normalize a given value to the 0-1 range on a log scale
+    """
+    def __call__(self, value, clip=None):
+        if clip is None:
+            clip = self.clip
+
+        result, is_scalar = self.process_value(value)
+
+        result = np.ma.masked_less_equal(result, 0, copy=False)
+
+        self.autoscale_None(result)
+        vmin, vmax = self.vmin, self.vmax
+        if vmin > vmax:
+            raise ValueError("minvalue must be less than or equal to maxvalue")
+        elif vmin <= 0:
+            raise ValueError("values must all be positive")
+        elif vmin == vmax:
+            result.fill(0)
+        else:
+            if clip:
+                mask = np.ma.getmask(result)
+                result = np.ma.array(np.clip(result.filled(vmax), vmin, vmax),
+                                     mask=mask)
+            # in-place equivalent of above can be much faster
+            resdat = result.data
+            mask = result.mask
+            if mask is np.ma.nomask:
+                mask = (resdat <= 0)
+            else:
+                mask |= resdat <= 0
+            np.copyto(resdat, 1, where=mask)
+            np.log(resdat, resdat)
+            resdat -= np.log(vmin)
+            resdat /= (np.log(vmax) - np.log(vmin))
+            result = np.ma.array(resdat, mask=mask, copy=False)
+        if is_scalar:
+            result = result[0]
+        return result
+
+    def inverse(self, value):
+        if not self.scaled():
+            raise ValueError("Not invertible until scaled")
+        vmin, vmax = self.vmin, self.vmax
+
+        if cbook.iterable(value):
+            val = np.ma.asarray(value)
+            return vmin * np.ma.power((vmax / vmin), val)
+        else:
+            return vmin * pow((vmax / vmin), value)
+
+    def autoscale(self, A):
+        """
+        Set *vmin*, *vmax* to min, max of *A*.
+        """
+        A = np.ma.masked_less_equal(A, 0, copy=False)
+        self.vmin = np.ma.min(A)
+        self.vmax = np.ma.max(A)
+
+    def autoscale_None(self, A):
+        """autoscale only None-valued vmin or vmax."""
+        if self.vmin is not None and self.vmax is not None:
+            return
+        A = np.ma.masked_less_equal(A, 0, copy=False)
+        if self.vmin is None and A.size:
+            self.vmin = A.min()
+        if self.vmax is None and A.size:
+            self.vmax = A.max()
+
 def get_pluto_coords(para):
     # Get grid spacing
     qx = para['qx']
@@ -153,7 +225,7 @@ def get_pluto_coords(para):
 
     return infodict
 
-def gen_plot(fig, ax, data, params, direction, depth=None, cax=None, **kwargs):
+def plot_setup(ax, data, params, direction, depth):
     infodict = get_pluto_coords(params)
     if direction == 'xy':
         depth = depth if depth is not None else infodict['cz']
@@ -178,16 +250,43 @@ def gen_plot(fig, ax, data, params, direction, depth=None, cax=None, **kwargs):
 
     else:
         raise ValueError("direction must be one of 'xy', 'xz', or 'yz'")
-    
-    X,Y = np.meshgrid(x, y)
-    mappable = ax.pcolormesh(X,Y,dslice.transpose(), **kwargs)
-    if cax is None:
-        cb = fig.colorbar(mappable, ax=ax)
-    elif cax == 'None':
-        pass
-    else:
-        cb = fig.colorbar(mappable, cax=cax)
 
+    X,Y = np.meshgrid(x, y)
 
     ax.set_xlim(x[0],x[-1])
     ax.set_ylim(y[0],y[-1])
+
+    return X, Y, dslice
+
+def beta_plot(fig, ax, data, params, direction, depth=None, cax=None):
+    X, Y, dslice = plot_setup(ax, data, params, direction, depth)
+
+    # Setup custom colorbar
+    cb_bounds = np.logspace(-1.5,2.5, 9)
+    levels = cb_bounds[::2]
+    ticks = cb_bounds[1::2]
+    colors = plt.cm.get_cmap('viridis',len(levels)+2).colors
+    cmap = ListedColormap(colors[1:-1],'beta_cmap')
+    cmap.set_over(colors[-1])
+    cmap.set_bad(colors[0])
+
+    # Catch the stupid warnings I don't care about
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+
+        mappable = ax.contourf(X.T,Y.T,dslice, levels=levels, norm=MyLogNorm(),
+                                cmap=cmap, extend='both',
+                                vmin=cb_bounds[0], vmax=cb_bounds[-1])
+
+    if cax != 'None':
+        cb = fig.colorbar(mappable, ax=ax, cax=cax)
+        cb.set_ticks(ticks)
+        cb.set_ticklabels(ticks)
+
+def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, **kwargs):
+    X, Y, dslice = plot_setup(ax, data, params, direction, depth)
+
+    mappable = ax.pcolormesh(X,Y,dslice.transpose(), **kwargs)
+
+    if cax != 'None':
+        cb = fig.colorbar(mappable, ax=ax, cax=cax)

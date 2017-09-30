@@ -1,8 +1,9 @@
 #!/usr/bin/python
 import numpy as np
 from HybridReader2 import HybridReader2 as hr
-from HybridHelper import parser, gen_plot
+from HybridHelper import parser, direct_plot, beta_plot
 import matplotlib.pyplot as plt
+from matplotlib import colors
 
 def var_sanity_check(isScalar, coord):
     if h.isScalar and args.variable.coordinate is not None:
@@ -12,6 +13,10 @@ def var_sanity_check(isScalar, coord):
 
 parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1, help='The specific step number to read')
 args = parser.parse_args()
+
+fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)
+ax1.set_aspect('equal', adjustable='box-forced')
+ax2.set_aspect('equal', adjustable='box-forced')
 
 if args.variable.name == 'beta':
     hn = hr(args.prefix, 'np')
@@ -28,7 +33,12 @@ if args.variable.name == 'beta':
     # Compute B \cdot B
     B2 = np.sum(B**2, axis=-1)
 
+    # Compute plasma beta
     data = n*T/(B2/(2*1.257e-6))
+
+    beta_plot(fig, ax1, data, para, 'xy', cax='None')
+    beta_plot(fig, ax2, data, para, 'xz')
+
 elif args.variable.name == 'bmag':
     hb = hr(args.prefix, 'bt')
     para = hb.para
@@ -36,6 +46,10 @@ elif args.variable.name == 'bmag':
     B = 1.6726219e-27/1.60217662e-19 * B # proton gyrofrequency -> T
     Bmag = np.sqrt(np.sum(B**2, axis=-1))
     data = Bmag
+
+    direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, cax='None', vmin=args.vmin, vmax=args.vmax)
+    direct_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
+
 elif args.variable.name == 'fmach':
     hn = hr(args.prefix, 'np')
     para = hn.para
@@ -67,23 +81,9 @@ elif args.variable.name == 'fmach':
 
     data = ux/us_vf
 
-elif args.variable.name == 'special':
-    hn = hr(args.prefix, 'np')
-    para = hn.para
-    n = hn.get_timestep(args.stepnum)[-1]
-    T = hr(args.prefix, 'temp_p').get_timestep(args.stepnum)[-1]
-    B = hr(args.prefix, 'bt').get_timestep(args.stepnum)[-1]
+    direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, cax='None', vmin=args.vmin, vmax=args.vmax)
+    direct_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
 
-    # Convert units
-    n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
-    TJ = 1.60218e-19 * T                  # eV -> J
-    B = 1.6726219e-27/1.60217662e-19 * B # proton gyrofrequency -> T
-
-    # Compute B \cdot B
-    B2 = np.sum(B**2, axis=-1)
-
-    #data = n*T/(B2/(2*1.257e-6))
-    data = T
 else:
     h = hr(args.prefix,args.variable.name)
     var_sanity_check(h.isScalar, args.variable.coordinate)
@@ -93,16 +93,8 @@ else:
         data = data[:,:,:,args.variable.coordinate]
     para = h.para
 
-
-fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)
-ax1.set_aspect('equal', adjustable='box-forced')
-ax2.set_aspect('equal', adjustable='box-forced')
-
-# Make X-Y plot
-gen_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, cax='None', vmin=args.vmin, vmax=args.vmax)
-
-# Make X-Z plot
-gen_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
+    direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, cax='None', vmin=args.vmin, vmax=args.vmax)
+    direct_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
 
 fig.suptitle(args.variable, fontsize=14)
 
