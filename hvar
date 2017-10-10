@@ -11,7 +11,8 @@ def var_sanity_check(isScalar, coord):
     if not h.isScalar and args.variable.coordinate is None:
         raise ValueError("Must specify a coordinate for vectors.")
 
-parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1, help='The specific step number to read')
+parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1,
+        help='The specific step number to read or -1 for the last step')
 args = parser.parse_args()
 
 fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)

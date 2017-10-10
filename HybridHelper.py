@@ -111,16 +111,16 @@ class NormAction(argparse.Action):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-p','--prefix', dest='prefix', default='databig', help='Name of the datafolder')
 parser.add_argument('-v','--variable', action=VariableAction, dest='variable', required=True,
-        help='Name of the variable whose data will be read')
+        help='Name of the variable whose data will be read. For vector quantaties you must provide a coordinate as well.')
+parser.add_argument('-p','--prefix', dest='prefix', default='databig', help='Name of the data folder')
 
-parser.add_argument('--colormap', default='viridis', help='Choose a colormap for the plot')
+parser.add_argument('--colormap', default='viridis', help='Choose a registered colormap for the plot')
 parser.add_argument('--save', nargs='?', default=False, const=True, 
         help='Set flag to save instead of displaying. Optionally provide a filename.')
 
 parser.add_argument('--norm', type=LowerString, action=NormAction, default='linear',
-                    help='Specify what scale to use')
+                    help='Specify what scale to use and optionally a prameter.')
 
 parser.add_argument('--vmin', type=float, default=None, help='Specify minimum for the colorbar')
 parser.add_argument('--vmax', type=float, default=None, help='Specify maximum for the colorbar')
