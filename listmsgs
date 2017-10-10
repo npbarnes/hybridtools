@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/local/pkg/python-anaconda/anaconda3/bin/python3
 import os
 import re
 import time
@@ -8,11 +8,12 @@ from filesize import dir_size, human_size
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--by-size', dest='bysize', action='store_true', help='If set, order messages by size of the folder')
+parser.add_argument('--no-size', dest='inc_size', action='store_false', help='Do not compute filesizes if this flag is set')
 args = parser.parse_args()
 
 def getallmsgdata():
     cwd = os.getcwd()
-    if '/data' not in cwd:
+    if '/hybrid_data' not in cwd:
         raise RuntimeError('You need to start in the data folder or one of its subfolders')
 
     msg_dirs = []
@@ -20,7 +21,10 @@ def getallmsgdata():
     for (dirpath,dirnames,filenames) in os.walk(cwd):
         if 'message' in filenames:
             msg_dirs.append(os.path.join(dirpath,'message'))
-            dir_sizes.append(dir_size(dirpath))
+            if args.inc_size:
+                dir_sizes.append(dir_size(dirpath))
+            else:
+                dir_sizes.append(0)
 
     def getmsg(f):
         fh = open(f)
@@ -65,5 +69,8 @@ if __name__ == '__main__':
         lst.sort(key=datekey)
 
     for (f,size,msg) in lst:
-        print(getdatestring(f) + '/' + getplutostring(f) + ' : ' + human_size(size))
+        if args.inc_size:
+            print(getdatestring(f) + '/' + getplutostring(f) + ' : ' + human_size(size))
+        else:
+            print(getdatestring(f) + '/' + getplutostring(f))
         print(textwrap.fill(msg, width=80, initial_indent='    ', subsequent_indent='    '))
