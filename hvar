@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import numpy as np
 from HybridReader2 import HybridReader2 as hr
-from HybridHelper import parser, direct_plot, beta_plot
+from HybridHelper import parser, parse_cmd_line, direct_plot, beta_plot
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
@@ -13,7 +13,7 @@ def var_sanity_check(isScalar, coord):
 
 parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1,
         help='The specific step number to read or -1 for the last step')
-args = parser.parse_args()
+args = parse_cmd_line()
 
 fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)
 ax1.set_aspect('equal', adjustable='box-forced')
@@ -100,9 +100,6 @@ else:
 fig.suptitle(args.variable, fontsize=14)
 
 if args.save:
-    if args.save is True:
-        fig.savefig(str(args.variable)+'.png', bbox_inches='tight')
-    else:
-        fig.savefig(args.save, bbox_inches='tight')
+    fig.savefig(args.save, bbox_inches='tight')
 else:
     plt.show()
