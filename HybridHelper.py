@@ -261,9 +261,6 @@ def plot_setup(ax, data, params, direction, depth):
 
     X,Y = np.meshgrid(x, y)
 
-    ax.set_xlim(x[0],x[-1])
-    ax.set_ylim(y[0],y[-1])
-
     return X, Y, dslice
 
 def beta_plot(fig, ax, data, params, direction, depth=None, cax=None):
