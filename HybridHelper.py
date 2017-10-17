@@ -270,7 +270,9 @@ def beta_plot(fig, ax, data, params, direction, depth=None, cax=None):
     cb_bounds = np.logspace(-1.5,2.5, 9)
     levels = cb_bounds[::2]
     ticks = cb_bounds[1::2]
-    colors = plt.cm.get_cmap('viridis',len(levels)+2).colors
+    # This can be handled by get_cmap in matplotlib v1.5.2 and greater
+    # writing out this line this way is to correct a bug in v1.5.1.
+    colors = cmaps.viridis(np.linspace(0,1,len(levels)+2))
     cmap = ListedColormap(colors[1:-1],'beta_cmap')
     cmap.set_over(colors[-1])
     cmap.set_bad(colors[0])
