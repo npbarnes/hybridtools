@@ -296,4 +296,4 @@ def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, **kwargs
     mappable = ax.pcolormesh(X,Y,dslice.transpose(), **kwargs)
 
     if cax != 'None':
-        cb = fig.colorbar(mappable, ax=ax, cax=cax)
+        cb = fig.colorbar(mappable, ax=ax, cax=cax, shrink=0.7)

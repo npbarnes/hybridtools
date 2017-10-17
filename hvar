@@ -3,7 +3,7 @@ import numpy as np
 from HybridReader2 import HybridReader2 as hr
 from HybridHelper import parser, parse_cmd_line, direct_plot, beta_plot
 import matplotlib.pyplot as plt
-from matplotlib import colors
+from matplotlib import colors, rcParams
 
 def var_sanity_check(isScalar, coord):
     if h.isScalar and args.variable.coordinate is not None:
@@ -15,7 +15,9 @@ parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1,
         help='The specific step number to read or -1 for the last step')
 args = parse_cmd_line()
 
-fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)
+fig, (ax1, ax2) = plt.subplots(ncols=2, sharex=True, sharey=True,
+        figsize=(2*rcParams['figure.figsize'][0], 0.8*rcParams['figure.figsize'][1]))
+fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, wspace=0.1)
 ax1.set_aspect('equal', adjustable='box-forced')
 ax2.set_aspect('equal', adjustable='box-forced')
 
@@ -37,7 +39,7 @@ if args.variable.name == 'beta':
     # Compute plasma beta
     data = n*T/(B2/(2*1.257e-6))
 
-    beta_plot(fig, ax1, data, para, 'xy', cax='None')
+    beta_plot(fig, ax1, data, para, 'xy')
     beta_plot(fig, ax2, data, para, 'xz')
 
 elif args.variable.name == 'bmag':
@@ -48,7 +50,7 @@ elif args.variable.name == 'bmag':
     Bmag = np.sqrt(np.sum(B**2, axis=-1))
     data = Bmag
 
-    direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, cax='None', vmin=args.vmin, vmax=args.vmax)
+    direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
     direct_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
 
 elif args.variable.name == 'fmach':
@@ -82,7 +84,7 @@ elif args.variable.name == 'fmach':
 
     data = ux/us_vf
 
-    direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, cax='None', vmin=args.vmin, vmax=args.vmax)
+    direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
     direct_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
 
 else:
@@ -94,8 +96,15 @@ else:
         data = data[:,:,:,args.variable.coordinate]
     para = h.para
 
-    direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, cax='None', vmin=args.vmin, vmax=args.vmax)
+    direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
     direct_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
+
+# set reasonable axis limits. (note than since axes are shared and aspect is equal this changes all limits.)
+ax1.set_ylim(-50,50)
+
+# Making axes shared automatically hides the yaxis tick labels. This makes them visible again.
+for tk in ax2.get_yticklabels():
+    tk.set_visible(True)
 
 fig.suptitle(args.variable, fontsize=14)
 
