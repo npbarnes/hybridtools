@@ -1,8 +1,15 @@
 #!/bin/bash
-hvar -p databig --norm log    -v np                              --save
-hvar -p databig --norm log    -v np_CH4                          --save
-hvar -p databig --norm log    -v temp_p --vmin 1     --vmax 1e3  --save
+echo "Plotting: np"
+hvar -p databig --norm log    -v np     --vmin 1e13  --vmax 1e16 --save
+echo "Plotting: np_CH4"
+hvar -p databig --norm log    -v np_CH4 --vmin 1e13  --vmax 1e16 --save
+echo "Plotting: temp_p"
+hvar -p databig --norm log    -v temp_p --vmin 1     --vmax 1e3  --save --colormap plasma
+echo "Plotting: bmag"
 hvar -p databig --norm log    -v bmag   --vmin 1e-11 --vmax 1e-7 --save
-#hvar -p databig --norm symlog -v bt x   --vmin 1e-11 --vmax 1e-7 --save
-hvar -p databig --norm log    -v beta   --vmin 1e-2  --vmax 1e4  --save
-hvar -p databig --norm log    -v fmach  --vmin 1     --vmax 650  --save
+echo "Plotting: bt x"
+hvar -p databig --norm symlog -v bt x   --vmin -1.3  --vmax 1.3  --save --colormap PRGn
+echo "Plotting: beta"
+hvar -p databig --norm log    -v beta                            --save
+echo "Plotting: fmach"
+hvar -p databig --norm log    -v fmach  --vmin 1     --vmax 650  --save --colormap cubehelix
