@@ -12,11 +12,11 @@ import warnings
 
 class CoordType(int):
     """A special integer that lives a double life as a string.
-    Used to input coordinates on the command line and automatically 
+    Used to input coordinates on the command line and automatically
     translate that character into an integer for indexing arrays
     while maintaining the string representation.
     """
-    def __new__(cls,c):
+    def __new__(cls, c):
         if c == 'x':
             return super(CoordType, cls).__new__(cls, 0)
         elif c == 'y':
