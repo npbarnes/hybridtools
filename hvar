@@ -99,7 +99,10 @@ else:
     direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
     direct_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
 
+
+
 # set reasonable axis limits. (note than since axes are shared and aspect is equal this changes all limits.)
+ax1.autoscale('tight')
 if args.ylim is not None:
     ax1.set_ylim(*args.ylim)
 
