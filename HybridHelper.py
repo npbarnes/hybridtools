@@ -125,6 +125,10 @@ parser.add_argument('--norm', type=LowerString, action=NormAction, default='line
 parser.add_argument('--vmin', type=float, default=None, help='Specify minimum for the colorbar')
 parser.add_argument('--vmax', type=float, default=None, help='Specify maximum for the colorbar')
 
+parser.add_argument('--xlim', type=float, default=None, nargs=2, help='Set the x data limits')
+parser.add_argument('--ylim', type=float, default=None, nargs=2, help='Set the y data limits')
+parser.add_argument('--zlim', type=float, default=None, nargs=2, help='Set the z data limits')
+
 def parse_cmd_line():
     args = parser.parse_args()
 

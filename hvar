@@ -100,7 +100,8 @@ else:
     direct_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
 
 # set reasonable axis limits. (note than since axes are shared and aspect is equal this changes all limits.)
-ax1.set_ylim(-50,50)
+if args.ylim is not None:
+    ax1.set_ylim(*args.ylim)
 
 # Making axes shared automatically hides the yaxis tick labels. This makes them visible again.
 for tk in ax2.get_yticklabels():
