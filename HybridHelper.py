@@ -7,8 +7,14 @@ plt.register_cmap(name='viridis', cmap=cmaps.viridis)
 plt.register_cmap(name='plasma', cmap=cmaps.plasma)
 import matplotlib.ticker as plticker
 from HybridReader2 import HybridReader2 as hr
+import NH_tools
+from numpy.ma import masked_array
+import matplotlib.cm as cm
 
 import warnings
+
+# Set constant for Pluto radius 
+Rp = 1187. # km
 
 class CoordType(int):
     """A special integer that lives a double life as a string.
@@ -225,8 +231,6 @@ def get_pluto_coords(para):
         print("Couldn't get pluto_offset. It has been assumed to be 30, but it probably isn't.")
         po = 30
 
-    # Set constatnt for Pluto radius 
-    Rp = 1187. # km
 
     # Shift grid so that Pluto lies at (0,0,0) and convert from km to Rp
     qx = (qx - qx[len(qx)/2 + po])/Rp
@@ -237,7 +241,7 @@ def get_pluto_coords(para):
 
     return infodict
 
-def plot_setup(ax, data, params, direction, depth):
+def plot_setup(ax, data, params, direction, depth, time_coords):
     infodict = get_pluto_coords(params)
     if direction == 'xy':
         depth = depth if depth is not None else infodict['cz']
@@ -263,6 +267,8 @@ def plot_setup(ax, data, params, direction, depth):
     else:
         raise ValueError("direction must be one of 'xy', 'xz', or 'yz'")
 
+    if time_coords:
+        x = [NH_tools.time_at_pos(xx*Rp) for xx in x]
     X,Y = np.meshgrid(x, y)
 
     return X, Y, dslice
@@ -294,10 +300,40 @@ def beta_plot(fig, ax, data, params, direction, depth=None, cax=None):
         cb.set_ticks(ticks)
         cb.set_ticklabels(ticks)
 
-def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, **kwargs):
-    X, Y, dslice = plot_setup(ax, data, params, direction, depth)
+def redblue_density_plot(fig, ax, h, he, ch4, params, direction, red_cax, blue_cax, depth=None, time_coords=False, **kwargs):
+    X, Y, h   = plot_setup(ax, h, params, direction, depth, time_coords)
+    X, Y, he = plot_setup(ax, he, params, direction, depth, time_coords)
+    X, Y, ch4 = plot_setup(ax, ch4, params, direction, depth, time_coords)
+
+    mass_tot = h+4*he+16*ch4
+
+    mtot   = masked_array(mass_tot, mask=16*ch4/mass_tot>0.5)
+    mheavy = masked_array(mass_tot, mask=16*ch4/mass_tot<=0.5)
+
+    #b = ax.pcolormesh(X,Y,mtot.transpose(), cmap='Blues', **kwargs)
+    #r = ax.pcolormesh(X,Y,mheavy.transpose(), cmap='Reds', **kwargs)
+
+    b = ax.pcolormesh(X,Y,mtot.transpose(), cmap='cool', **kwargs)
+    r = ax.pcolormesh(X,Y,mheavy.transpose(), cmap='hot', **kwargs)
+
+    fig.colorbar(b, cax=blue_cax)
+    fig.colorbar(r, cax=red_cax, format="")
+
+def redblue_plot(fig, ax, heavy, params, direction, depth=None, time_coords=False):
+    X, Y, heavy   = plot_setup(ax, heavy, params, direction, depth, time_coords)
+
+    ratio = np.where(heavy == 0, 0.1, 0.9)
+
+    mappable = ax.pcolormesh(X,Y,ratio.transpose(), cmap='coolwarm', vmin=0, vmax=1)
+
+def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coords=False, **kwargs):
+    X, Y, dslice = plot_setup(ax, data, params, direction, depth, time_coords)
 
     mappable = ax.pcolormesh(X,Y,dslice.transpose(), **kwargs)
 
-    if cax != 'None':
-        cb = fig.colorbar(mappable, ax=ax, cax=cax, shrink=0.7)
+    if cax == 'None':
+        return
+    elif cax == None:
+        cb = fig.colorbar(mappable, ax=ax, shrink=0.7)
+    else:
+        cb = fig.colorbar(mappable, cax=cax)

@@ -87,6 +87,18 @@ elif args.variable.name == 'fmach':
     direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
     direct_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
 
+elif args.variable.name == 'ratio':
+    h = hr(args.prefix, 'np')
+    ch4 = hr(args.prefix, 'np_CH4')
+
+    h_data = h.get_timestep(args.stepnum)[-1]
+    ch4_data = ch4.get_timestep(args.stepnum)[-1]
+
+    para = h.para
+
+    ratio_plot(fig, ax1, h_data, ch4_data, para, 'xy', norm=args.norm)
+    ratio_plot(fig, ax2, h_data, ch4_data, para, 'xz', norm=args.norm)
+
 else:
     h = hr(args.prefix,args.variable.name)
     var_sanity_check(h.isScalar, args.variable.coordinate)
