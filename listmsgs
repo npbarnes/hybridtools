@@ -37,9 +37,15 @@ def getdatematch(string):
     return re.search('data/(.+)/pluto',string)
 def getdatestring(string):
     match = getdatematch(string)
-    return match.group(1)
+    if match:
+        return match.group(1)
+    else:
+        return '9999-Mon-Jan-01'
 def getdate(string):
-    return time.strptime(getdatestring(string), '%Y-%a-%b-%d')
+    try:
+        return time.strptime(getdatestring(string), '%Y-%a-%b-%d')
+    except ValueError:
+        return time.strptime('9999-Mon-Jan-01', '%Y-%a-%b-%d')
 
 def getplutomatch(string):
     return re.search('pluto-(\d+)',string)
