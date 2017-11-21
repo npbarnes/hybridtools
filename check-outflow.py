@@ -5,6 +5,7 @@ import FortranFile as ff
 from HybridHelper import parser
 from HybridParams import HybridParams
 from os.path import join
+import matplotlib.pyplot as plt
 
 args = parser.parse_args()
 p = HybridParams(args.prefix)
@@ -40,9 +41,13 @@ for n in range(p.para['num_proc']):
                 part_out[i, n] += 1/(b*p.para['beta'])
                 mass_out[i, n] += kg_per_amu/m * 1/(p.para['beta']*b)
 
-mass_out = np.sum(mass_out, axis=1)
+# Sum over processors
 part_out = np.sum(part_out, axis=1)
+mass_out = np.sum(mass_out, axis=1)
 
-print max_i
-last_n = max_i - max_i/20
-print np.sum(part_out[maxi-last_n:max_i])/(last_n*p.para['dt']/2)
+print(p.para['dt'])
+
+#plt.plot(np.linspace(0,p.para['dt']*p.para['nt'], len(part_out)), part_out)
+plt.plot(part_out)
+
+plt.show()
