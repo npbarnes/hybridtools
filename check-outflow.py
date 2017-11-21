@@ -34,7 +34,7 @@ for n in range(p.para['num_proc']):
         if len(mrat) == 0:
             continue
 
-        # for each particle
+        # for each macro particle
         for m,b,t in zip(mrat, beta_p, tags):
             if t != 0:
                 part_out[i, n] += 1/(b*p.para['beta'])
