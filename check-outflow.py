@@ -2,16 +2,20 @@
 import numpy as np
 from sys import argv
 import FortranFile as ff
-from HybridHelper import parser
+#from HybridHelper import parser
 from HybridParams import HybridParams
 from os.path import join
 import matplotlib.pyplot as plt
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('prefix')
 
 args = parser.parse_args()
 p = HybridParams(args.prefix)
 
-mass_out = np.zeros((2*p.para['nt'], p.para['num_proc']))
-part_out = np.zeros((2*p.para['nt'], p.para['num_proc']))
+mass_out = np.zeros(2*p.para['nt'])
+part_out = np.zeros(2*p.para['nt'])
 
 kg_per_amu = 1.6605e-27
 
@@ -38,16 +42,12 @@ for n in range(p.para['num_proc']):
         # for each macro particle
         for m,b,t in zip(mrat, beta_p, tags):
             if t != 0:
-                part_out[i, n] += 1/(b*p.para['beta'])
-                mass_out[i, n] += kg_per_amu/m * 1/(p.para['beta']*b)
-
-# Sum over processors
-part_out = np.sum(part_out, axis=1)
-mass_out = np.sum(mass_out, axis=1)
+                part_out[i] += 1/(b*p.para['beta'])
+                mass_out[i] += kg_per_amu/m * 1/(p.para['beta']*b)
+    print("Proc {} ends on half-step {}/{}".format(n, i+1, 2*p.para['nt']))
 
 print(p.para['dt'])
 
-#plt.plot(np.linspace(0,p.para['dt']*p.para['nt'], len(part_out)), part_out)
 plt.plot(part_out)
 
 plt.show()
