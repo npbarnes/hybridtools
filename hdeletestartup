@@ -21,8 +21,8 @@ def safe_overwrite(original, replacement, tmp_path):
 
 cwd = os.getcwd()
 
-grid_dir = os.path.join(cwd,'databig','grid')
-part_dir = os.path.join(cwd,'databig','particle')
+grid_dir = os.path.join(cwd,'data','grid')
+part_dir = os.path.join(cwd,'data','particle')
 
 before_size = dir_size(grid_dir) + dir_size(part_dir)
 
