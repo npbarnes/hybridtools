@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+import matplotlib as mpl
 from matplotlib.colors import Normalize, LogNorm, SymLogNorm, ListedColormap
 import colormaps as cmaps
 import matplotlib.pyplot as plt
@@ -230,6 +231,8 @@ def get_pluto_coords(para):
     except KeyError:
         print("Couldn't get pluto_offset. It has been assumed to be 30, but it probably isn't.")
         po = 30
+    print("HybridHelper: I'm setting pluto offset to 30 because for some reason hpara gets it wrong. FIXME!")
+    po=30
 
 
     # Shift grid so that Pluto lies at (0,0,0) and convert from km to Rp
@@ -241,28 +244,28 @@ def get_pluto_coords(para):
 
     return infodict
 
-def plot_setup(ax, data, params, direction, depth, time_coords):
+def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=None, mccomas=False):
     infodict = get_pluto_coords(params)
     if direction == 'xy':
         depth = depth if depth is not None else infodict['cz']
         dslice = data[:,:,depth]
         x,y = infodict['px'], infodict['py']
-        ax.set_xlabel('X ($R_p$)')
-        ax.set_ylabel('Y ($R_p$)')
+        ax.set_xlabel('X ($R_p$)', fontsize=fontsize)
+        ax.set_ylabel('Transverse ($R_p$)' if mccomas else 'Y ($R_p$)', fontsize=fontsize)
 
     elif direction == 'xz':
         depth = depth if depth is not None else infodict['cy']
         dslice = data[:,depth,:]
         x,y = infodict['px'], infodict['pz']
-        ax.set_xlabel('X ($R_p$)')
-        ax.set_ylabel('Z ($R_p$)')
+        ax.set_xlabel('X ($R_p$)', fontsize=fontsize)
+        ax.set_ylabel('Z ($R_p$)', fontsize=fontsize)
 
     elif direction == 'yz':
         depth = depth if depth is not None else infodict['cx']
         dslice = data[depth,:,:]
         x,y = infodict['py'], infodict['pz']
-        ax.set_xlabel('Y ($R_p$)')
-        ax.set_ylabel('Z ($R_p$)')
+        ax.set_xlabel('Y ($R_p$)', fontsize=fontsize)
+        ax.set_ylabel('Z ($R_p$)', fontsize=fontsize)
 
     else:
         raise ValueError("direction must be one of 'xy', 'xz', or 'yz'")
@@ -271,15 +274,26 @@ def plot_setup(ax, data, params, direction, depth, time_coords):
         x = [NH_tools.time_at_pos(xx*Rp) for xx in x]
     X,Y = np.meshgrid(x, y)
 
+    if mccomas:
+        if direction == 'xy':
+            X = -X
+            Y = -Y
+        elif direction == 'xz':
+            X = -X
+        elif direction == 'yz':
+            X = -X
+
+    if fontsize is not None:
+        ax.tick_params(axis='both', which='major', labelsize=0.7*fontsize)
+
     return X, Y, dslice
 
-def beta_plot(fig, ax, data, params, direction, depth=None, cax=None):
-    X, Y, dslice = plot_setup(ax, data, params, direction, depth)
+def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=None, mccomas=False, refinement=0):
+    X, Y, dslice = plot_setup(ax, data, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
 
     # Setup custom colorbar
-    cb_bounds = np.logspace(-1.5,2.5, 9)
-    levels = cb_bounds[::2]
-    ticks = cb_bounds[1::2]
+    levels = np.logspace(-1.5,2.5, 5+refinement)
+    ticks = np.logspace(-1,2,4)
     # This can be handled by get_cmap in matplotlib v1.5.2 and greater
     # writing out this line this way is to correct a bug in v1.5.1.
     colors = cmaps.viridis(np.linspace(0,1,len(levels)+2))
@@ -291,9 +305,9 @@ def beta_plot(fig, ax, data, params, direction, depth=None, cax=None):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
 
-        mappable = ax.contourf(X.T,Y.T,dslice, levels=levels, norm=MyLogNorm(),
+        mappable = ax.contourf(X.T, Y.T, dslice, levels=levels, norm=MyLogNorm(),
                                 cmap=cmap, extend='both',
-                                vmin=cb_bounds[0], vmax=cb_bounds[-1])
+                                vmin=levels[0], vmax=levels[-1])
 
     if cax != 'None':
         cb = fig.colorbar(mappable, ax=ax, cax=cax)
@@ -326,14 +340,23 @@ def redblue_plot(fig, ax, heavy, params, direction, depth=None, time_coords=Fals
 
     mappable = ax.pcolormesh(X,Y,ratio.transpose(), cmap='coolwarm', vmin=0, vmax=1)
 
-def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coords=False, **kwargs):
-    X, Y, dslice = plot_setup(ax, data, params, direction, depth, time_coords)
+def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coords=False, fontsize=None, mccomas=False, **kwargs):
+    X, Y, dslice = plot_setup(ax, data, params, direction, depth, time_coords, fontsize=fontsize, mccomas=mccomas)
 
     mappable = ax.pcolormesh(X,Y,dslice.transpose(), **kwargs)
 
     if cax == 'None':
         return
     elif cax == None:
-        cb = fig.colorbar(mappable, ax=ax, shrink=0.7)
+        if kwargs['norm'] == 'log':
+            cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=plticker.LogLocator())
+        else:
+            cb = fig.colorbar(mappable, ax=ax, shrink=0.7)
+        #if kwargs['norm'] == 'log':
+        #    cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=plticker.LogLocator())
+        #else:
+        #    cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=None)
     else:
         cb = fig.colorbar(mappable, cax=cax)
+
+    cb.ax.set_title("(km$^{-3}$)")
