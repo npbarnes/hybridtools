@@ -231,9 +231,6 @@ def get_pluto_coords(para):
     except KeyError:
         print("Couldn't get pluto_offset. It has been assumed to be 30, but it probably isn't.")
         po = 30
-    print("HybridHelper: I'm setting pluto offset to 30 because for some reason hpara gets it wrong. FIXME!")
-    po=30
-
 
     # Shift grid so that Pluto lies at (0,0,0) and convert from km to Rp
     qx = (qx - qx[len(qx)/2 + po])/Rp
