@@ -7,6 +7,7 @@ from HybridParams import HybridParams
 from os.path import join
 import matplotlib.pyplot as plt
 import argparse
+from progress import printProgressBar 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('prefix')
@@ -44,7 +45,7 @@ for n in range(p.para['num_proc']):
             if t != 0:
                 part_out[i] += 1/(b*p.para['beta'])
                 mass_out[i] += kg_per_amu/m * 1/(p.para['beta']*b)
-    print("Proc {} ends on half-step {}/{}".format(n, i+1, 2*p.para['nt']))
+    printProgressBar(n+1, p.para['num_proc'])
 
 print(p.para['dt'])
 
