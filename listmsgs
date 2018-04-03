@@ -8,11 +8,12 @@ from filesize import dir_size, human_size
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--by-size', dest='bysize', action='store_true', help='If set, order messages by size of the folder')
+parser.add_argument('--override-folder', dest='override', action='store_true')
 args = parser.parse_args()
 
 def getallmsgdata():
     cwd = os.getcwd()
-    if '/data' not in cwd:
+    if not args.override and '/data' not in cwd:
         raise RuntimeError('You need to start in the data folder or one of its subfolders')
 
     msg_dirs = []
