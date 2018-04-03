@@ -1,16 +1,17 @@
 #!/bin/bash
 echo "Plotting: np"
-hvar -p data --norm log    -v np     --vmin 1e13  --vmax 1e16 --save                      --ylim -50 50
+hvar -p data --norm log    -v np     --vmin 1e13  --vmax 1e16 --save                      --xlim -20 110 --ylim -50 50 --fontsize 20 --mccomas
 echo "Plotting: np_CH4"
-hvar -p data --norm log    -v np_CH4 --vmin 1e13  --vmax 1e16 --save
-hvar -p data --norm log    -v np_CH4 --vmin 1e13  --vmax 1e16 --save np_CH4_5050          --ylim -50 50
+hvar -p data --norm log    -v np_CH4 --vmin 1e13  --vmax 1e16 --save                      --xlim -20 110 --ylim -50 50 --fontsize 20 --mccomas
 echo "Plotting: temp_p"
-hvar -p data --norm log    -v temp_p --vmin 1     --vmax 1e3  --save --colormap plasma    --ylim -50 50
+hvar -p data --norm log    -v temp_p --vmin 1     --vmax 1e3  --save --colormap plasma    --xlim -20 110 --ylim -50 50 --fontsize 20 --mccomas
 echo "Plotting: bmag"
-hvar -p data --norm log    -v bmag   --vmin 1e-11 --vmax 1e-7 --save                      --ylim -50 50
+hvar -p data --norm log    -v bmag   --vmin 1e-11 --vmax 1e-7 --save                      --xlim -20 110 --ylim -50 50 --fontsize 20 --mccomas
 echo "Plotting: bt x"
-hvar -p data --norm symlog -v bt x   --vmin -1.3  --vmax 1.3  --save --colormap PRGn      --ylim -50 50
+hvar -p data --norm symlog -v bt x   --vmin -1.3  --vmax 1.3  --save --colormap PRGn      --xlim -20 110 --ylim -50 50 --fontsize 20 --mccomas
 echo "Plotting: beta"
-hvar -p data --norm log    -v beta                            --save                      --ylim -50 50 --fontsize 20
+hvar -p data --norm log    -v beta                            --save                      --xlim -20 110 --ylim -50 50 --fontsize 20 --mccomas
 echo "Plotting: fmach"
-hvar -p data --norm log    -v fmach  --vmin 1     --vmax 650  --save --colormap cubehelix --ylim -50 50
+hvar -p data --norm log    -v fmach  --vmin 1     --vmax 650  --save --colormap cubehelix --xlim -20 110 --ylim -50 50 --fontsize 20 --mccomas
+echo "Plotting: bowshock/heavy ion tail"
+hvar -p data               -v bs                              --save                      --xlim -20 110 --ylim -50 50 --fontsize 20 --mccomas
