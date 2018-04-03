@@ -2,6 +2,7 @@ import argparse
 import numpy as np
 import matplotlib as mpl
 from matplotlib.colors import Normalize, LogNorm, SymLogNorm, ListedColormap
+from matplotlib import rcParams
 import colormaps as cmaps
 import matplotlib.pyplot as plt
 plt.register_cmap(name='viridis', cmap=cmaps.viridis)
@@ -135,14 +136,39 @@ parser.add_argument('--vmax', type=float, default=None, help='Specify maximum fo
 parser.add_argument('--xlim', type=float, default=None, nargs=2, help='Set the x data limits')
 parser.add_argument('--ylim', type=float, default=None, nargs=2, help='Set the y data limits')
 parser.add_argument('--zlim', type=float, default=None, nargs=2, help='Set the z data limits')
+parser.add_argument('--mccomas', action='store_true', 
+    help='Set to arrange the plot in the (-x, transverse) plane instead of the default (x,y) plane')
+
+parser.add_argument('--fontsize', type=float, default=None)
+parser.add_argument('--refinement', type=int, default=0)
+parser.add_argument('--no-traj', dest='traj', action='store_false')
+parser.add_argument('--separate-figures', dest='separate', action='store_true')
 
 def parse_cmd_line():
     args = parser.parse_args()
 
     if args.save is True:
-        args.save = str(args.variable)+'.png'
+        args.save = str(args.variable)
 
     return args
+
+def init_figures(args):
+    if args.separate:
+        fig1 = plt.figure()
+        fig2 = plt.figure()
+        ax1 = fig1.add_subplot(111)
+        ax2 = fig2.add_subplot(111)
+
+    else:
+        fig1, (ax1, ax2) = plt.subplots(ncols=2, sharex=True, sharey=True,
+                figsize=(2*rcParams['figure.figsize'][0], 0.8*rcParams['figure.figsize'][1]))
+        fig1.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, wspace=0.1)
+        fig2 = fig1
+
+    ax1.set_aspect('equal', adjustable='box-forced')
+    ax2.set_aspect('equal', adjustable='box-forced')
+
+    return fig1, fig2, ax1, ax2
 
 class MyLogNorm(Normalize):
     """
@@ -241,6 +267,54 @@ def get_pluto_coords(para):
 
     return infodict
 
+def get_next_beta_slice(hn, hT, hB, direction, coordinate=None, depth=None):
+    infodict = get_pluto_coords(hn.para)
+    n = hn.get_next_timestep()[-1]
+    T = hT.get_next_timestep()[-1]
+    B = hB.get_next_timestep()[-1]
+
+    # Convert units
+    n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
+    T = 1.60218e-19 * T                  # eV -> J
+    B = 1.6726219e-27/1.60217662e-19 * B # proton gyrofrequency -> T
+
+    # Compute B \cdot B
+    B2 = np.sum(B**2, axis=-1)
+
+    # Compute plasma beta
+    data = n*T/(B2/(2*1.257e-6))
+
+    if direction == 'xy':
+        depth = depth if depth is not None else infodict['cz']
+        return data[:,:,depth]
+
+    elif direction == 'xz':
+        depth = depth if depth is not None else infodict['cy']
+        return data[:,depth,:]
+
+    elif direction == 'yz':
+        depth = depth if depth is not None else infodict['cx']
+        return data[depth,:,:]
+
+def get_next_slice(h, direction, coordinate=None, depth=None):
+    infodict = get_pluto_coords(h.para)
+    data = h.get_next_timestep()[-1]
+    if not h.isScalar:
+        assert coordinate is not None
+        data = data[:,:,:,args.variable.coordinate]
+
+    if direction == 'xy':
+        depth = depth if depth is not None else infodict['cz']
+        return data[:,:,depth]
+
+    elif direction == 'xz':
+        depth = depth if depth is not None else infodict['cy']
+        return data[:,depth,:]
+
+    elif direction == 'yz':
+        depth = depth if depth is not None else infodict['cx']
+        return data[depth,:,:]
+
 def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=None, mccomas=False):
     infodict = get_pluto_coords(params)
     if direction == 'xy':
@@ -311,6 +385,25 @@ def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=N
         cb.set_ticks(ticks)
         cb.set_ticklabels(ticks)
 
+    return mappable
+
+def bs_hi_plot(fig, ax, n_tot, n_h, n_ch4, ux, swspeed, hdensity, params, direction, mccomas=False, depth=None, time_coords=False, fontsize=None, **kwargs):
+    """Plot bowshock, plutopause, and heavy ion tail defined as:
+    bowshock: >20% slowing of the solar wind (defined explicitly in McComas 2016)
+    plutopause: >70% exclusion of H+ (proxy for solar wind particles) (defined indirectly in McComas 2016)
+    heavy ion tail: >50% heavy ions (defined indirectly in McComas 2016)
+    """
+    X, Y, n = plot_setup(ax, n_tot, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
+    X, Y, h = plot_setup(ax, n_h, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
+    X, Y, ch4 = plot_setup(ax, n_ch4, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
+    X, Y, v = plot_setup(ax, ux, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
+
+    bs_cont = ax.contourf(X.T, Y.T, v, levels=[-0.8*swspeed, 0], colors='b')
+    pp_cont = ax.contourf(X.T, Y.T, h, levels=[0, 0.3*hdensity], colors='m')
+    hi_cont = ax.contourf(X.T,Y.T, ch4/n, levels=[.5,1], colors='r')
+
+    return bs_cont, pp_cont, hi_cont
+
 def redblue_density_plot(fig, ax, h, he, ch4, params, direction, red_cax, blue_cax, depth=None, time_coords=False, **kwargs):
     X, Y, h   = plot_setup(ax, h, params, direction, depth, time_coords)
     X, Y, he = plot_setup(ax, he, params, direction, depth, time_coords)
@@ -329,6 +422,7 @@ def redblue_density_plot(fig, ax, h, he, ch4, params, direction, red_cax, blue_c
 
     fig.colorbar(b, cax=blue_cax)
     fig.colorbar(r, cax=red_cax, format="")
+    return b,r
 
 def redblue_plot(fig, ax, heavy, params, direction, depth=None, time_coords=False):
     X, Y, heavy   = plot_setup(ax, heavy, params, direction, depth, time_coords)
@@ -336,6 +430,7 @@ def redblue_plot(fig, ax, heavy, params, direction, depth=None, time_coords=Fals
     ratio = np.where(heavy == 0, 0.1, 0.9)
 
     mappable = ax.pcolormesh(X,Y,ratio.transpose(), cmap='coolwarm', vmin=0, vmax=1)
+    return mappable
 
 def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coords=False, fontsize=None, mccomas=False, **kwargs):
     X, Y, dslice = plot_setup(ax, data, params, direction, depth, time_coords, fontsize=fontsize, mccomas=mccomas)
@@ -357,3 +452,23 @@ def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coo
         cb = fig.colorbar(mappable, cax=cax)
 
     cb.ax.set_title("(km$^{-3}$)")
+
+    return mappable
+
+def traj_plot(fig, ax, direction, mccomas=False):
+    traj, o = NH_tools.trajectory(NH_tools.flyby_start, NH_tools.flyby_end, 60.)
+    traj = traj/1187.
+
+    if mccomas:
+        if 'x' in direction:
+            traj[:,0] = -traj[:,0]
+        if 'y' in direction:
+            traj[:,1] = -traj[:,1]
+
+    if direction == 'xy':
+        x = traj[:, 0]
+        y = traj[:, 1]
+    elif direction == 'xz':
+        x = traj[:, 0]
+        y = traj[:, 2]
+    ax.plot(x, y, color='black', linewidth=2, scalex=False, scaley=False)
