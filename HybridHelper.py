@@ -178,6 +178,35 @@ parser.add_argument('--title', default=None)
 parser.add_argument('--title2', default=None)
 parser.add_argument('--units', default='')
 
+def build_format_coord(xx,yy,C):
+    def format_coord(x,y):
+        if xx.ndim == 2:
+            X = xx[0,:]
+        else:
+            X = xx
+
+        if yy.ndim == 2:
+            Y = yy[:,0]
+        else:
+            Y = yy
+
+        if X[0] < X[-1]:
+            col = np.searchsorted(X, x)
+        else:
+            col = X.size - np.searchsorted(X[::-1], x, side='right')
+
+        if Y[0] < Y[-1]:
+            row = np.searchsorted(Y, y)
+        else:
+            row = Y.size - np.searchsorted(Y[::-1], y, side='right')
+
+        try:
+            return "x={0:.4f}, y={1:.4f}, color={2:.4e}".format(x, y, C.T[row,col])
+        except IndexError:
+            return "x={0:1.4f}, y={1:1.4f}".format(x, y)
+
+    return format_coord
+
 def parse_cmd_line():
     args = parser.parse_args()
 
