@@ -180,8 +180,8 @@ def init_figures(args):
         fig1.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, wspace=0.1)
         fig2 = fig1
 
-    ax1.set_aspect('equal', adjustable='box-forced')
-    ax2.set_aspect('equal', adjustable='box-forced')
+    ax1.set_aspect('equal', adjustable='box')
+    ax2.set_aspect('equal', adjustable='box')
 
     return fig1, fig2, ax1, ax2
 
@@ -453,33 +453,24 @@ def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coo
 
     mappable = ax.pcolormesh(X,Y,dslice.transpose(), **kwargs)
 
-    if cax == 'None':
-        return
-    elif cax == None:
-        if kwargs['norm'] == 'log':
-            cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=plticker.LogLocator())
+    if cax != 'None':
+        if cax == None:
+            if 'SymLogNorm' in repr(kwargs['norm']):
+                cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=plticker.SymmetricalLogLocator(linthresh=0.01, base=10))
+            elif 'LogNorm' in repr(kwargs['norm']):
+                cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=plticker.LogLocator())
+            else:
+                cb = fig.colorbar(mappable, ax=ax, shrink=0.7)
         else:
-            cb = fig.colorbar(mappable, ax=ax, shrink=0.7)
-        #if kwargs['norm'] == 'log':
-        #    cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=plticker.LogLocator())
-        #else:
-        #    cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=None)
-    else:
-        cb = fig.colorbar(mappable, cax=cax)
+            cb = fig.colorbar(mappable, cax=cax)
 
-    cb.ax.set_title("(km$^{-3}$)")
+        cb.ax.set_title(cbtitle)
 
-    return mappable
+    return mappable, X, Y, dslice
 
 def traj_plot(fig, ax, direction, mccomas=False):
     traj, o, times = spice_tools.trajectory(spice_tools.flyby_start, spice_tools.flyby_end, 60., mccomas=mccomas)
     traj = traj/1187.
-
-    if mccomas:
-        if 'x' in direction:
-            traj[:,0] = -traj[:,0]
-        if 'y' in direction:
-            traj[:,1] = -traj[:,1]
 
     if direction == 'xy':
         x = traj[:, 0]
