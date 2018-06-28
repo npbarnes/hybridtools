@@ -41,7 +41,11 @@ elif args.variable.name == 'beta':
     hn = hr(args.prefix, 'np')
     para = hn.para
     n = hn.get_timestep(args.stepnum)[-1]
-    T = hr(args.prefix, 'temp_p').get_timestep(args.stepnum)[-1]
+    try:
+        T = hr(args.prefix, 'temp_tot').get_timestep(args.stepnum)[-1]
+    except NoSuchVariable:
+        T = hr(args.prefix, 'temp_p').get_timestep(args.stepnum)[-1]
+
     B = hr(args.prefix, 'bt').get_timestep(args.stepnum)[-1]
 
     # Convert units
@@ -75,7 +79,7 @@ elif args.variable.name == 'fmach':
     hn = hr(args.prefix, 'np')
     para = hn.para
     n = hn.get_timestep(args.stepnum)[-1]
-    T = hr(args.prefix, 'temp_p').get_timestep(args.stepnum)[-1]
+    T = hr(args.prefix, 'temp_tot').get_timestep(args.stepnum)[-1]
     B = hr(args.prefix, 'bt').get_timestep(args.stepnum)[-1]
     u = hr(args.prefix, 'up').get_timestep(args.stepnum)[-1]
     ux = -u[:,:,:,0]
