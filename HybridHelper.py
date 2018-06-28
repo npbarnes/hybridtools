@@ -12,11 +12,39 @@ from HybridReader2 import HybridReader2 as hr
 import spice_tools
 from numpy.ma import masked_array
 import matplotlib.cm as cm
+from scipy.interpolate import griddata
+from streamplot import streamplot
 
 import warnings
 
 # Set constant for Pluto radius 
 Rp = 1187. # km
+
+def streams(ax, x, y, u, v, *args, **kwargs):
+    """Make a streamplot on a non-uniform grid.
+    It works by interpolating onto a uniform grid before calling
+    the usual streamplot function. Arguments beyond the basic ones
+    will be passed along to streamplot."""
+    if x.ndim == 1 and y.ndim == 1:
+        X, Y = np.meshgrid(x,y)
+    else:
+        assert x.ndim == 2
+        assert y.ndim == 2
+
+    x_unif = np.linspace(x.min(), x.max(), len(x))
+    y_unif = np.linspace(y.min(), y.max(), len(y))
+
+    X_unif, Y_unif = np.meshgrid(x_unif,y_unif)
+
+    px = X.flatten()
+    py = Y.flatten()
+    pu = u.flatten()
+    pv = v.flatten()
+
+    gu = griddata(zip(px,py), pu, (X_unif,Y_unif))
+    gv = griddata(zip(px,py), pv, (X_unif,Y_unif))
+
+    return streamplot(ax, x_unif, y_unif, gu, gv, *args, **kwargs)
 
 class CoordType(int):
     """A special integer that lives a double life as a string.
