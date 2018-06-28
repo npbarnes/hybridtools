@@ -140,15 +140,30 @@ parser.add_argument('--mccomas', action='store_true',
     help='Set to arrange the plot in the (-x, transverse) plane instead of the default (x,y) plane')
 
 parser.add_argument('--fontsize', type=float, default=None)
+parser.add_argument('--titlesize', type=float, default=25)
+parser.add_argument('--labelsize', type=float, default=20)
+parser.add_argument('--ticklabelsize', type=float, default=15)
 parser.add_argument('--refinement', type=int, default=0)
 parser.add_argument('--no-traj', dest='traj', action='store_false')
 parser.add_argument('--separate-figures', dest='separate', action='store_true')
+parser.add_argument('--title', default=None)
+parser.add_argument('--title2', default=None)
+parser.add_argument('--units', default='')
 
 def parse_cmd_line():
     args = parser.parse_args()
 
+    if args.fontsize:
+        raise RuntimeError("The --fontsize argument is depreciated, use --titlesize, --labelsize, and --ticklabelsize.")
+
     if args.save is True:
         args.save = str(args.variable)
+
+    if args.title is None:
+        args.title = str(args.variable)
+
+    if args.title2 is None:
+        args.title2 = args.title
 
     return args
 
@@ -315,28 +330,28 @@ def get_next_slice(h, direction, coordinate=None, depth=None):
         depth = depth if depth is not None else infodict['cx']
         return data[depth,:,:]
 
-def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=None, mccomas=False):
+def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=None, mccomas=False, titlesize=25, labelsize=20, ticklabelsize=15):
     infodict = get_pluto_coords(params)
     if direction == 'xy':
         depth = depth if depth is not None else infodict['cz']
         dslice = data[:,:,depth]
         x,y = infodict['px'], infodict['py']
-        ax.set_xlabel('X ($R_p$)', fontsize=fontsize)
-        ax.set_ylabel('Transverse ($R_p$)' if mccomas else 'Y ($R_p$)', fontsize=fontsize)
+        ax.set_xlabel('X ($R_p$)', fontsize=labelsize)
+        ax.set_ylabel('Transverse ($R_p$)' if mccomas else 'Y ($R_p$)', fontsize=labelsize)
 
     elif direction == 'xz':
         depth = depth if depth is not None else infodict['cy']
         dslice = data[:,depth,:]
         x,y = infodict['px'], infodict['pz']
-        ax.set_xlabel('X ($R_p$)', fontsize=fontsize)
-        ax.set_ylabel('Z ($R_p$)', fontsize=fontsize)
+        ax.set_xlabel('X ($R_p$)', fontsize=labelsize)
+        ax.set_ylabel('Z ($R_p$)', fontsize=labelsize)
 
     elif direction == 'yz':
         depth = depth if depth is not None else infodict['cx']
         dslice = data[depth,:,:]
         x,y = infodict['py'], infodict['pz']
-        ax.set_xlabel('Y ($R_p$)', fontsize=fontsize)
-        ax.set_ylabel('Z ($R_p$)', fontsize=fontsize)
+        ax.set_xlabel('Y ($R_p$)', fontsize=labelsize)
+        ax.set_ylabel('Z ($R_p$)', fontsize=labelsize)
 
     else:
         raise ValueError("direction must be one of 'xy', 'xz', or 'yz'")
@@ -356,13 +371,12 @@ def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=N
         elif direction == 'yz':
             X = -X
 
-    if fontsize is not None:
-        ax.tick_params(axis='both', which='major', labelsize=0.7*fontsize)
+    ax.tick_params(axis='both', which='major', labelsize=ticklabelsize)
 
     return X, Y, dslice
 
-def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=None, mccomas=False, refinement=0):
-    X, Y, dslice = plot_setup(ax, data, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
+def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=None, mccomas=False, refinement=0, titlesize=25, labelsize=20, ticklabelsize=15):
+    X, Y, dslice = plot_setup(ax, data, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
 
     # Setup custom colorbar
     levels = np.logspace(-1.5,2.5, 5+refinement)
@@ -389,16 +403,16 @@ def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=N
 
     return mappable
 
-def bs_hi_plot(fig, ax, n_tot, n_h, n_ch4, ux, swspeed, hdensity, params, direction, mccomas=False, depth=None, time_coords=False, fontsize=None, **kwargs):
+def bs_hi_plot(fig, ax, n_tot, n_h, n_ch4, ux, swspeed, hdensity, params, direction, mccomas=False, depth=None, time_coords=False, fontsize=None, titlesize=25, labelsize=20, ticklabelsize=15, **kwargs):
     """Plot bowshock, plutopause, and heavy ion tail defined as:
     bowshock: >20% slowing of the solar wind (defined explicitly in McComas 2016)
     plutopause: >70% exclusion of H+ (proxy for solar wind particles) (defined indirectly in McComas 2016)
     heavy ion tail: >50% heavy ions (defined indirectly in McComas 2016)
     """
-    X, Y, n = plot_setup(ax, n_tot, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
-    X, Y, h = plot_setup(ax, n_h, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
-    X, Y, ch4 = plot_setup(ax, n_ch4, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
-    X, Y, v = plot_setup(ax, ux, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
+    X, Y, n = plot_setup(ax, n_tot, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
+    X, Y, h = plot_setup(ax, n_h, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
+    X, Y, ch4 = plot_setup(ax, n_ch4, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
+    X, Y, v = plot_setup(ax, ux, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
 
     bs_cont = ax.contourf(X.T, Y.T, v, levels=[-0.8*swspeed, 0], colors='b')
     pp_cont = ax.contourf(X.T, Y.T, h, levels=[0, 0.3*hdensity], colors='m')
@@ -434,8 +448,8 @@ def redblue_plot(fig, ax, heavy, params, direction, depth=None, time_coords=Fals
     mappable = ax.pcolormesh(X,Y,ratio.transpose(), cmap='coolwarm', vmin=0, vmax=1)
     return mappable
 
-def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coords=False, fontsize=None, mccomas=False, **kwargs):
-    X, Y, dslice = plot_setup(ax, data, params, direction, depth, time_coords, fontsize=fontsize, mccomas=mccomas)
+def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coords=False, fontsize=None, mccomas=False, titlesize=25, labelsize=20, ticklabelsize=15, cbtitle='', **kwargs):
+    X, Y, dslice = plot_setup(ax, data, params, direction, depth, time_coords, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
 
     mappable = ax.pcolormesh(X,Y,dslice.transpose(), **kwargs)
 
