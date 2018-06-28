@@ -9,7 +9,7 @@ plt.register_cmap(name='viridis', cmap=cmaps.viridis)
 plt.register_cmap(name='plasma', cmap=cmaps.plasma)
 import matplotlib.ticker as plticker
 from HybridReader2 import HybridReader2 as hr
-import NH_tools
+import spice_tools
 from numpy.ma import masked_array
 import matplotlib.cm as cm
 
@@ -342,7 +342,9 @@ def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=N
         raise ValueError("direction must be one of 'xy', 'xz', or 'yz'")
 
     if time_coords:
-        x = [NH_tools.time_at_pos(xx*Rp) for xx in x]
+        # Don't pass in mccomas=True since the x variable is always internal coordinates in this function
+        # assuming data is coming directly from the simulation.
+        x = [spice_tools.time_at_pos(xx*Rp, mccomas=False) for xx in x]
     X,Y = np.meshgrid(x, y)
 
     if mccomas:
@@ -456,7 +458,7 @@ def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coo
     return mappable
 
 def traj_plot(fig, ax, direction, mccomas=False):
-    traj, o = NH_tools.trajectory(NH_tools.flyby_start, NH_tools.flyby_end, 60.)
+    traj, o, times = spice_tools.trajectory(spice_tools.flyby_start, spice_tools.flyby_end, 60., mccomas=mccomas)
     traj = traj/1187.
 
     if mccomas:
