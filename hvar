@@ -33,8 +33,8 @@ if args.variable.name == 'bs':
     ux = ux[:,:,:,0]
     para = hup.para
 
-    bs_hi_plot(fig1, ax1, n_tot, n_h, n_ch4,ux, 401, 2.7e12, para, 'xy', fontsize=args.fontsize, mccomas=args.mccomas)
-    bs_hi_plot(fig2, ax2, n_tot, n_h, n_ch4,ux, 401, 2.7e12, para, 'xz', fontsize=args.fontsize, mccomas=args.mccomas)
+    bs_hi_plot(fig1, ax1, n_tot, n_h, n_ch4,ux, 401, 2.7e12, para, 'xy', mccomas=args.mccomas, titlesize=args.titlesize, labelsize=args.labelsize, ticklabelsize=args.ticklabelsize)
+    bs_hi_plot(fig2, ax2, n_tot, n_h, n_ch4,ux, 401, 2.7e12, para, 'xz', mccomas=args.mccomas, titlesize=args.titlesize, labelsize=args.labelsize, ticklabelsize=args.ticklabelsize)
 
 
 elif args.variable.name == 'beta':
@@ -55,8 +55,8 @@ elif args.variable.name == 'beta':
     # Compute plasma beta
     data = n*T/(B2/(2*1.257e-6))
 
-    beta_plot(fig1, ax1, data, para, 'xy', fontsize=args.fontsize, mccomas=args.mccomas, refinement=args.refinement)
-    beta_plot(fig2, ax2, data, para, 'xz', fontsize=args.fontsize, mccomas=args.mccomas, refinement=args.refinement)
+    m1, X1, Y1, C1 = beta_plot(fig1, ax1, data, para, 'xy', mccomas=args.mccomas, refinement=args.refinement, titlesize=args.titlesize, labelsize=args.labelsize, ticklabelsize=args.ticklabelsize)
+    m2, X2, Y2, C2 = beta_plot(fig2, ax2, data, para, 'xz', mccomas=args.mccomas, refinement=args.refinement, titlesize=args.titlesize, labelsize=args.labelsize, ticklabelsize=args.ticklabelsize)
 
     args.variable = 'Plasma Beta'
 
@@ -68,8 +68,8 @@ elif args.variable.name == 'bmag':
     Bmag = np.sqrt(np.sum(B**2, axis=-1))
     data = Bmag
 
-    direct_plot(fig1, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax, mccomas=args.mccomas)
-    direct_plot(fig2, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax, mccomas=args.mccomas)
+    m1, X1, Y1, C1 = direct_plot(fig1, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax, mccomas=args.mccomas, titlesize=args.titlesize, labelsize=args.labelsize, ticklabelsize=args.ticklabelsize)
+    m2, X2, Y2, C2 = direct_plot(fig2, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax, mccomas=args.mccomas, titlesize=args.titlesize, labelsize=args.labelsize, ticklabelsize=args.ticklabelsize)
 
 elif args.variable.name == 'fmach':
     hn = hr(args.prefix, 'np')
@@ -102,8 +102,8 @@ elif args.variable.name == 'fmach':
 
     data = ux/us_vf
 
-    direct_plot(fig1, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax, mccomas=args.mccomas)
-    direct_plot(fig2, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax, mccomas=args.mccomas)
+    m1, X1, Y1, C1 = direct_plot(fig1, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax, mccomas=args.mccomas, titlesize=args.titlesize, labelsize=args.labelsize, ticklabelsize=args.ticklabelsize)
+    m2, X2, Y2, C2 = direct_plot(fig2, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax, mccomas=args.mccomas, titlesize=args.titlesize, labelsize=args.labelsize, ticklabelsize=args.ticklabelsize)
 
 elif args.variable.name == 'ratio':
     h = hr(args.prefix, 'np')
@@ -114,8 +114,8 @@ elif args.variable.name == 'ratio':
 
     para = h.para
 
-    ratio_plot(fig1, ax1, h_data, ch4_data, para, 'xy', norm=args.norm, mccomas=args.mccomas)
-    ratio_plot(fig2, ax2, h_data, ch4_data, para, 'xz', norm=args.norm, mccomas=args.mccomas)
+    ratio_plot(fig1, ax1, h_data, ch4_data, para, 'xy', norm=args.norm, mccomas=args.mccomas, titlesize=args.titlesize, labelsize=args.labelsize, ticklabelsize=args.ticklabelsize)
+    ratio_plot(fig2, ax2, h_data, ch4_data, para, 'xz', norm=args.norm, mccomas=args.mccomas, titlesize=args.titlesize, labelsize=args.labelsize, ticklabelsize=args.ticklabelsize)
 
 else:
     h = hr(args.prefix,args.variable.name)
@@ -126,8 +126,8 @@ else:
         data = data[:,:,:,args.variable.coordinate]
     para = h.para
 
-    direct_plot(fig1, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax, mccomas=args.mccomas)
-    direct_plot(fig2, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax, mccomas=args.mccomas)
+    m1, X1, Y1, C1 = direct_plot(fig1, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax, mccomas=args.mccomas, titlesize=args.titlesize, labelsize=args.labelsize, ticklabelsize=args.ticklabelsize, cbtitle=args.units)
+    m2, X2, Y2, C2 = direct_plot(fig2, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax, mccomas=args.mccomas, titlesize=args.titlesize, labelsize=args.labelsize, ticklabelsize=args.ticklabelsize, cbtitle=args.units)
 
 if args.streamlines:
     bt = hr(args.prefix,'bt')
@@ -172,26 +172,31 @@ if args.traj:
     traj_plot(fig1, ax1, 'xy', mccomas=args.mccomas)
     traj_plot(fig2, ax2, 'xz', mccomas=args.mccomas)
 
-# set reasonable axis limits. (note than since axes are shared and aspect is equal this changes all limits.)
-ax1.autoscale('tight')
-if args.ylim is not None:
-    ax1.set_ylim(*args.ylim)
-if args.xlim is not None:
-    ax1.set_xlim(*args.xlim)
+if args.separate:
+    if args.ylim is not None:
+        ax1.set_ylim(*args.ylim)
+        ax2.set_ylim(*args.ylim)
+    if args.xlim is not None:
+        ax1.set_xlim(*args.xlim)
+        ax2.set_xlim(*args.xlim)
+else:
+    # Since axes are shared and aspect is equal this changes all limits.
+    ax1.autoscale('tight')
+    if args.ylim is not None:
+        ax1.set_ylim(*args.ylim)
+    if args.xlim is not None:
+        ax1.set_xlim(*args.xlim)
 
 # Making axes shared automatically hides the yaxis tick labels. This makes them visible again.
 for tk in ax2.get_yticklabels():
     tk.set_visible(True)
 
 
-if args.fontsize is not None:
-    fig1.suptitle(args.variable, fontsize=1.5*args.fontsize)
-    if args.separate:
-        fig2.suptitle(args.variable, fontsize=1.5*args.fontsize)
+if args.separate:
+    ax1.set_title(args.title,  fontsize=args.titlesize)
+    ax2.set_title(args.title2, fontsize=args.titlesize)
 else:
-    fig1.suptitle(args.variable, fontsize=14)
-    if args.separate:
-        fig2.suptitle(args.variable, fontsize=14)
+    fig1.suptitle(args.title, fontsize=args.titlesize)
 
 if args.save:
     fig1.savefig(args.save+'.png', bbox_inches='tight')
@@ -199,4 +204,10 @@ if args.save:
         fig2.savefig(args.save+'2.png', bbox_inches='tight')
 
 else:
+    try:
+        ax1.format_coord = build_format_coord(X1, Y1, C1)
+        ax2.format_coord = build_format_coord(X2, Y2, C2)
+    except NameError:
+        print("Cannot build coordinate formatter for this plot")
+
     plt.show()
