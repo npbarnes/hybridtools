@@ -9,14 +9,42 @@ plt.register_cmap(name='viridis', cmap=cmaps.viridis)
 plt.register_cmap(name='plasma', cmap=cmaps.plasma)
 import matplotlib.ticker as plticker
 from HybridReader2 import HybridReader2 as hr
-import NH_tools
+import spice_tools
 from numpy.ma import masked_array
 import matplotlib.cm as cm
+from scipy.interpolate import griddata
+from streamplot import streamplot
 
 import warnings
 
 # Set constant for Pluto radius 
 Rp = 1187. # km
+
+def streams(ax, x, y, u, v, *args, **kwargs):
+    """Make a streamplot on a non-uniform grid.
+    It works by interpolating onto a uniform grid before calling
+    the usual streamplot function. Arguments beyond the basic ones
+    will be passed along to streamplot."""
+    if x.ndim == 1 and y.ndim == 1:
+        X, Y = np.meshgrid(x,y)
+    else:
+        assert x.ndim == 2
+        assert y.ndim == 2
+
+    x_unif = np.linspace(x.min(), x.max(), len(x))
+    y_unif = np.linspace(y.min(), y.max(), len(y))
+
+    X_unif, Y_unif = np.meshgrid(x_unif,y_unif)
+
+    px = X.flatten()
+    py = Y.flatten()
+    pu = u.flatten()
+    pv = v.flatten()
+
+    gu = griddata(zip(px,py), pu, (X_unif,Y_unif))
+    gv = griddata(zip(px,py), pv, (X_unif,Y_unif))
+
+    return streamplot(ax, x_unif, y_unif, gu, gv, *args, **kwargs)
 
 class CoordType(int):
     """A special integer that lives a double life as a string.
@@ -140,15 +168,59 @@ parser.add_argument('--mccomas', action='store_true',
     help='Set to arrange the plot in the (-x, transverse) plane instead of the default (x,y) plane')
 
 parser.add_argument('--fontsize', type=float, default=None)
+parser.add_argument('--titlesize', type=float, default=25)
+parser.add_argument('--labelsize', type=float, default=20)
+parser.add_argument('--ticklabelsize', type=float, default=15)
 parser.add_argument('--refinement', type=int, default=0)
 parser.add_argument('--no-traj', dest='traj', action='store_false')
 parser.add_argument('--separate-figures', dest='separate', action='store_true')
+parser.add_argument('--title', default=None)
+parser.add_argument('--title2', default=None)
+parser.add_argument('--units', default='')
+
+def build_format_coord(xx,yy,C):
+    def format_coord(x,y):
+        if xx.ndim == 2:
+            X = xx[0,:]
+        else:
+            X = xx
+
+        if yy.ndim == 2:
+            Y = yy[:,0]
+        else:
+            Y = yy
+
+        if X[0] < X[-1]:
+            col = np.searchsorted(X, x)
+        else:
+            col = X.size - np.searchsorted(X[::-1], x, side='right')
+
+        if Y[0] < Y[-1]:
+            row = np.searchsorted(Y, y)
+        else:
+            row = Y.size - np.searchsorted(Y[::-1], y, side='right')
+
+        try:
+            return "x={0:.4f}, y={1:.4f}, color={2:.4e}".format(x, y, C.T[row,col])
+        except IndexError:
+            return "x={0:1.4f}, y={1:1.4f}".format(x, y)
+
+    return format_coord
 
 def parse_cmd_line():
     args = parser.parse_args()
 
+    if args.fontsize:
+        raise RuntimeError("The --fontsize argument is depreciated, use --titlesize, --labelsize, and --ticklabelsize.")
+
     if args.save is True:
         args.save = str(args.variable)
+
+    if args.title is None:
+        args.title = str(args.variable)
+
+    if args.title2 is None:
+        args.title2 = args.title
 
     return args
 
@@ -165,8 +237,8 @@ def init_figures(args):
         fig1.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, wspace=0.1)
         fig2 = fig1
 
-    ax1.set_aspect('equal', adjustable='box-forced')
-    ax2.set_aspect('equal', adjustable='box-forced')
+    ax1.set_aspect('equal', adjustable='box')
+    ax2.set_aspect('equal', adjustable='box')
 
     return fig1, fig2, ax1, ax2
 
@@ -315,34 +387,36 @@ def get_next_slice(h, direction, coordinate=None, depth=None):
         depth = depth if depth is not None else infodict['cx']
         return data[depth,:,:]
 
-def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=None, mccomas=False):
+def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=None, mccomas=False, titlesize=25, labelsize=20, ticklabelsize=15):
     infodict = get_pluto_coords(params)
     if direction == 'xy':
         depth = depth if depth is not None else infodict['cz']
         dslice = data[:,:,depth]
         x,y = infodict['px'], infodict['py']
-        ax.set_xlabel('X ($R_p$)', fontsize=fontsize)
-        ax.set_ylabel('Transverse ($R_p$)' if mccomas else 'Y ($R_p$)', fontsize=fontsize)
+        ax.set_xlabel('X ($R_p$)', fontsize=labelsize)
+        ax.set_ylabel('Transverse ($R_p$)' if mccomas else 'Y ($R_p$)', fontsize=labelsize)
 
     elif direction == 'xz':
         depth = depth if depth is not None else infodict['cy']
         dslice = data[:,depth,:]
         x,y = infodict['px'], infodict['pz']
-        ax.set_xlabel('X ($R_p$)', fontsize=fontsize)
-        ax.set_ylabel('Z ($R_p$)', fontsize=fontsize)
+        ax.set_xlabel('X ($R_p$)', fontsize=labelsize)
+        ax.set_ylabel('Z ($R_p$)', fontsize=labelsize)
 
     elif direction == 'yz':
         depth = depth if depth is not None else infodict['cx']
         dslice = data[depth,:,:]
         x,y = infodict['py'], infodict['pz']
-        ax.set_xlabel('Y ($R_p$)', fontsize=fontsize)
-        ax.set_ylabel('Z ($R_p$)', fontsize=fontsize)
+        ax.set_xlabel('Y ($R_p$)', fontsize=labelsize)
+        ax.set_ylabel('Z ($R_p$)', fontsize=labelsize)
 
     else:
         raise ValueError("direction must be one of 'xy', 'xz', or 'yz'")
 
     if time_coords:
-        x = [NH_tools.time_at_pos(xx*Rp) for xx in x]
+        # Don't pass in mccomas=True since the x variable is always internal coordinates in this function
+        # assuming data is coming directly from the simulation.
+        x = [spice_tools.time_at_pos(xx*Rp, mccomas=False) for xx in x]
     X,Y = np.meshgrid(x, y)
 
     if mccomas:
@@ -354,13 +428,12 @@ def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=N
         elif direction == 'yz':
             X = -X
 
-    if fontsize is not None:
-        ax.tick_params(axis='both', which='major', labelsize=0.7*fontsize)
+    ax.tick_params(axis='both', which='major', labelsize=ticklabelsize)
 
     return X, Y, dslice
 
-def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=None, mccomas=False, refinement=0):
-    X, Y, dslice = plot_setup(ax, data, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
+def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=None, mccomas=False, refinement=0, titlesize=25, labelsize=20, ticklabelsize=15):
+    X, Y, dslice = plot_setup(ax, data, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
 
     # Setup custom colorbar
     levels = np.logspace(-1.5,2.5, 5+refinement)
@@ -387,16 +460,16 @@ def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=N
 
     return mappable
 
-def bs_hi_plot(fig, ax, n_tot, n_h, n_ch4, ux, swspeed, hdensity, params, direction, mccomas=False, depth=None, time_coords=False, fontsize=None, **kwargs):
+def bs_hi_plot(fig, ax, n_tot, n_h, n_ch4, ux, swspeed, hdensity, params, direction, mccomas=False, depth=None, time_coords=False, fontsize=None, titlesize=25, labelsize=20, ticklabelsize=15, **kwargs):
     """Plot bowshock, plutopause, and heavy ion tail defined as:
     bowshock: >20% slowing of the solar wind (defined explicitly in McComas 2016)
     plutopause: >70% exclusion of H+ (proxy for solar wind particles) (defined indirectly in McComas 2016)
     heavy ion tail: >50% heavy ions (defined indirectly in McComas 2016)
     """
-    X, Y, n = plot_setup(ax, n_tot, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
-    X, Y, h = plot_setup(ax, n_h, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
-    X, Y, ch4 = plot_setup(ax, n_ch4, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
-    X, Y, v = plot_setup(ax, ux, params, direction, depth, fontsize=fontsize, mccomas=mccomas)
+    X, Y, n = plot_setup(ax, n_tot, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
+    X, Y, h = plot_setup(ax, n_h, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
+    X, Y, ch4 = plot_setup(ax, n_ch4, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
+    X, Y, v = plot_setup(ax, ux, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
 
     bs_cont = ax.contourf(X.T, Y.T, v, levels=[-0.8*swspeed, 0], colors='b')
     pp_cont = ax.contourf(X.T, Y.T, h, levels=[0, 0.3*hdensity], colors='m')
@@ -432,38 +505,29 @@ def redblue_plot(fig, ax, heavy, params, direction, depth=None, time_coords=Fals
     mappable = ax.pcolormesh(X,Y,ratio.transpose(), cmap='coolwarm', vmin=0, vmax=1)
     return mappable
 
-def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coords=False, fontsize=None, mccomas=False, **kwargs):
-    X, Y, dslice = plot_setup(ax, data, params, direction, depth, time_coords, fontsize=fontsize, mccomas=mccomas)
+def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coords=False, fontsize=None, mccomas=False, titlesize=25, labelsize=20, ticklabelsize=15, cbtitle='', **kwargs):
+    X, Y, dslice = plot_setup(ax, data, params, direction, depth, time_coords, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
 
     mappable = ax.pcolormesh(X,Y,dslice.transpose(), **kwargs)
 
-    if cax == 'None':
-        return
-    elif cax == None:
-        if kwargs['norm'] == 'log':
-            cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=plticker.LogLocator())
+    if cax != 'None':
+        if cax == None:
+            if 'SymLogNorm' in repr(kwargs['norm']):
+                cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=plticker.SymmetricalLogLocator(linthresh=0.01, base=10))
+            elif 'LogNorm' in repr(kwargs['norm']):
+                cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=plticker.LogLocator())
+            else:
+                cb = fig.colorbar(mappable, ax=ax, shrink=0.7)
         else:
-            cb = fig.colorbar(mappable, ax=ax, shrink=0.7)
-        #if kwargs['norm'] == 'log':
-        #    cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=plticker.LogLocator())
-        #else:
-        #    cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=None)
-    else:
-        cb = fig.colorbar(mappable, cax=cax)
+            cb = fig.colorbar(mappable, cax=cax)
 
-    cb.ax.set_title("(km$^{-3}$)")
+        cb.ax.set_title(cbtitle)
 
-    return mappable
+    return mappable, X, Y, dslice
 
 def traj_plot(fig, ax, direction, mccomas=False):
-    traj, o = NH_tools.trajectory(NH_tools.flyby_start, NH_tools.flyby_end, 60.)
+    traj, o, times = spice_tools.trajectory(spice_tools.flyby_start, spice_tools.flyby_end, 60., mccomas=mccomas)
     traj = traj/1187.
-
-    if mccomas:
-        if 'x' in direction:
-            traj[:,0] = -traj[:,0]
-        if 'y' in direction:
-            traj[:,1] = -traj[:,1]
 
     if direction == 'xy':
         x = traj[:, 0]
