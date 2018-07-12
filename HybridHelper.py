@@ -432,18 +432,19 @@ def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=N
 
     return X, Y, dslice
 
-def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=None, mccomas=False, refinement=0, titlesize=25, labelsize=20, ticklabelsize=15):
+def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=None, mccomas=False, limits=None, refinement=0, titlesize=25, labelsize=20, ticklabelsize=15):
     X, Y, dslice = plot_setup(ax, data, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
 
+    if limits is None:
+        limits = (-1,2)
+
     # Setup custom colorbar
-    levels = np.logspace(-1.5,2.5, 5+refinement)
-    ticks = np.logspace(-1,2,4)
-    # This can be handled by get_cmap in matplotlib v1.5.2 and greater
-    # writing out this line this way is to correct a bug in v1.5.1.
-    colors = cmaps.viridis(np.linspace(0,1,len(levels)+2))
-    cmap = ListedColormap(colors[1:-1],'beta_cmap')
-    cmap.set_over(colors[-1])
-    cmap.set_bad(colors[0])
+    levels = np.logspace(limits[0] - .5,limits[1] + .5, (limits[1]-limits[0]+1)*(refinement+1)+1)
+    ticks = np.logspace(limits[0],limits[1],limits[1]-limits[0]+1)
+    viridis = cm.get_cmap('viridis', len(levels)+2)
+    cmap = ListedColormap(viridis.colors[1:-1],'beta_cmap')
+    cmap.set_over(viridis.colors[-1])
+    cmap.set_bad(viridis.colors[0])
 
     # Catch the stupid warnings I don't care about
     with warnings.catch_warnings():
@@ -458,7 +459,7 @@ def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=N
         cb.set_ticks(ticks)
         cb.set_ticklabels(ticks)
 
-    return mappable
+    return mappable, X, Y, dslice
 
 def bs_hi_plot(fig, ax, n_tot, n_h, n_ch4, ux, swspeed, hdensity, params, direction, mccomas=False, depth=None, time_coords=False, fontsize=None, titlesize=25, labelsize=20, ticklabelsize=15, **kwargs):
     """Plot bowshock, plutopause, and heavy ion tail defined as:
