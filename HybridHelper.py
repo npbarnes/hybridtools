@@ -3,10 +3,7 @@ import numpy as np
 import matplotlib as mpl
 from matplotlib.colors import Normalize, LogNorm, SymLogNorm, ListedColormap
 from matplotlib import rcParams
-import colormaps as cmaps
 import matplotlib.pyplot as plt
-plt.register_cmap(name='viridis', cmap=cmaps.viridis)
-plt.register_cmap(name='plasma', cmap=cmaps.plasma)
 import matplotlib.ticker as plticker
 from HybridReader2 import HybridReader2 as hr
 import spice_tools
