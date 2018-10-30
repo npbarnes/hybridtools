@@ -141,16 +141,22 @@ class NormAction(argparse.Action):
         else:
             raise argparse.ArgumentError(option_string, 'Choose between linear, log, or symlog')
 
-
+def limittype(s):
+    if s == 'auto':
+        return None
+    else:
+        return float(s)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v','--variable', action=VariableAction, dest='variable', required=True,
         help='Name of the variable whose data will be read. For vector quantaties you must provide a coordinate as well.')
-parser.add_argument('-p','--prefix', dest='prefix', default='databig', help='Name of the data folder')
+parser.add_argument('-p','--prefix', dest='prefix', default='data', help='Name of the data folder')
 
 parser.add_argument('--colormap', default='viridis', help='Choose a registered colormap for the plot')
 parser.add_argument('--save', nargs='?', default=False, const=True, 
         help='Set flag to save instead of displaying. Optionally provide a filename.')
+parser.add_argument('--save2', default=None,
+        help='Provide a filename for the second figure if --separate-figures and --save are passed')
 
 parser.add_argument('--norm', type=LowerString, action=NormAction, default='linear',
                     help='Specify what scale to use and optionally a prameter.')
@@ -158,9 +164,9 @@ parser.add_argument('--norm', type=LowerString, action=NormAction, default='line
 parser.add_argument('--vmin', type=float, default=None, help='Specify minimum for the colorbar')
 parser.add_argument('--vmax', type=float, default=None, help='Specify maximum for the colorbar')
 
-parser.add_argument('--xlim', type=float, default=None, nargs=2, help='Set the x data limits')
-parser.add_argument('--ylim', type=float, default=None, nargs=2, help='Set the y data limits')
-parser.add_argument('--zlim', type=float, default=None, nargs=2, help='Set the z data limits')
+parser.add_argument('--xlim', type=limittype, default=None, nargs=2, help='Set the x data limits')
+parser.add_argument('--ylim', type=limittype, default=None, nargs=2, help='Set the y data limits')
+parser.add_argument('--zlim', type=limittype, default=None, nargs=2, help='Set the z data limits')
 parser.add_argument('--mccomas', action='store_true', 
     help='Set to arrange the plot in the (-x, transverse) plane instead of the default (x,y) plane')
 
@@ -174,6 +180,9 @@ parser.add_argument('--separate-figures', dest='separate', action='store_true')
 parser.add_argument('--title', default=None)
 parser.add_argument('--title2', default=None)
 parser.add_argument('--units', default='')
+parser.add_argument('--style', help='Matplotlib style to use for the plot')
+parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1,
+        help='The specific step number to read. Negative numbers count from the end')
 
 def build_format_coord(xx,yy,C):
     def format_coord(x,y):
@@ -197,6 +206,9 @@ def build_format_coord(xx,yy,C):
         else:
             row = Y.size - np.searchsorted(Y[::-1], y, side='right')
 
+        row -= 1
+        col -= 1
+
         try:
             return "x={0:.4f}, y={1:.4f}, color={2:.4e}".format(x, y, C.T[row,col])
         except IndexError:
@@ -204,14 +216,19 @@ def build_format_coord(xx,yy,C):
 
     return format_coord
 
-def parse_cmd_line():
-    args = parser.parse_args()
+def hybrid_parse(cmd_args=None):
+    args = parser.parse_args(cmd_args)
 
     if args.fontsize:
         raise RuntimeError("The --fontsize argument is depreciated, use --titlesize, --labelsize, and --ticklabelsize.")
 
     if args.save is True:
-        args.save = str(args.variable)
+        args.save = str(args.variable) + '_xy.png'
+    if args.save2 is None:
+        args.save2 = str(args.variable) + '_xz.png'
+
+    if args.style:
+        plt.style.use(args.style)
 
     if args.title is None:
         args.title = str(args.variable)
@@ -220,6 +237,9 @@ def parse_cmd_line():
         args.title2 = args.title
 
     return args
+
+def parse_cmd_line():
+    return hybrid_parse()
 
 def init_figures(args):
     if args.separate:
@@ -370,7 +390,7 @@ def get_next_slice(h, direction, coordinate=None, depth=None):
     data = h.get_next_timestep()[-1]
     if not h.isScalar:
         assert coordinate is not None
-        data = data[:,:,:,args.variable.coordinate]
+        data = data[:,:,:,coordinate]
 
     if direction == 'xy':
         depth = depth if depth is not None else infodict['cz']
@@ -384,28 +404,31 @@ def get_next_slice(h, direction, coordinate=None, depth=None):
         depth = depth if depth is not None else infodict['cx']
         return data[depth,:,:]
 
-def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=None, mccomas=False, titlesize=25, labelsize=20, ticklabelsize=15):
+def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=None, mccomas=False, titlesize=25, labelsize=20, ticklabelsize=15, skip_labeling=False):
     infodict = get_pluto_coords(params)
     if direction == 'xy':
         depth = depth if depth is not None else infodict['cz']
         dslice = data[:,:,depth]
         x,y = infodict['px'], infodict['py']
-        ax.set_xlabel('X ($R_p$)', fontsize=labelsize)
-        ax.set_ylabel('Transverse ($R_p$)' if mccomas else 'Y ($R_p$)', fontsize=labelsize)
+        if not skip_labeling:
+            ax.set_xlabel('$X$ ($R_p$)', fontsize=labelsize)
+            ax.set_ylabel('Transverse ($R_p$)' if mccomas else 'Y ($R_p$)', fontsize=labelsize)
 
     elif direction == 'xz':
         depth = depth if depth is not None else infodict['cy']
         dslice = data[:,depth,:]
         x,y = infodict['px'], infodict['pz']
-        ax.set_xlabel('X ($R_p$)', fontsize=labelsize)
-        ax.set_ylabel('Z ($R_p$)', fontsize=labelsize)
+        if not skip_labeling:
+            ax.set_xlabel('$X$ ($R_p$)', fontsize=labelsize)
+            ax.set_ylabel('$Z$ ($R_p$)', fontsize=labelsize)
 
     elif direction == 'yz':
         depth = depth if depth is not None else infodict['cx']
         dslice = data[depth,:,:]
         x,y = infodict['py'], infodict['pz']
-        ax.set_xlabel('Y ($R_p$)', fontsize=labelsize)
-        ax.set_ylabel('Z ($R_p$)', fontsize=labelsize)
+        if not skip_labeling:
+            ax.set_xlabel('$Y$ ($R_p$)', fontsize=labelsize)
+            ax.set_ylabel('$Z$ ($R_p$)', fontsize=labelsize)
 
     else:
         raise ValueError("direction must be one of 'xy', 'xz', or 'yz'")
@@ -425,12 +448,13 @@ def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=N
         elif direction == 'yz':
             X = -X
 
-    ax.tick_params(axis='both', which='major', labelsize=ticklabelsize)
+    if not skip_labeling:
+        ax.tick_params(axis='both', which='major', labelsize=ticklabelsize)
 
     return X, Y, dslice
 
-def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=None, mccomas=False, limits=None, refinement=0, titlesize=25, labelsize=20, ticklabelsize=15):
-    X, Y, dslice = plot_setup(ax, data, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
+def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=None, mccomas=False, limits=None, refinement=0, titlesize=25, labelsize=20, ticklabelsize=15, skip_labeling=False, cbar_orientation='vertical'):
+    X, Y, dslice = plot_setup(ax, data, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize, skip_labeling=skip_labeling)
 
     if limits is None:
         limits = (-1,2)
@@ -438,6 +462,7 @@ def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=N
     # Setup custom colorbar
     levels = np.logspace(limits[0] - .5,limits[1] + .5, (limits[1]-limits[0]+1)*(refinement+1)+1)
     ticks = np.logspace(limits[0],limits[1],limits[1]-limits[0]+1)
+
     viridis = cm.get_cmap('viridis', len(levels)+2)
     cmap = ListedColormap(viridis.colors[1:-1],'beta_cmap')
     cmap.set_over(viridis.colors[-1])
@@ -452,26 +477,35 @@ def beta_plot(fig, ax, data, params, direction, depth=None, cax=None, fontsize=N
                                 vmin=levels[0], vmax=levels[-1])
 
     if cax != 'None':
-        cb = fig.colorbar(mappable, ax=ax, cax=cax)
+        cb = fig.colorbar(mappable, ax=ax, cax=cax, orientation=cbar_orientation)
         cb.set_ticks(ticks)
         cb.set_ticklabels(ticks)
 
     return mappable, X, Y, dslice
 
-def bs_hi_plot(fig, ax, n_tot, n_h, n_ch4, ux, swspeed, hdensity, params, direction, mccomas=False, depth=None, time_coords=False, fontsize=None, titlesize=25, labelsize=20, ticklabelsize=15, **kwargs):
+def beta_plot2(ax, data, params, direction, depth=None, mccomas=False, log_bound=2):
+    X, Y, dslice = plot_setup(ax, data, params, direction, depth, mccomas=mccomas, skip_labeling=True)
+
+    mappable = ax.pcolormesh(X.T, Y.T, dslice, norm=LogNorm(), cmap='PuOr_r', vmin=10**-log_bound, vmax=10**log_bound)
+
+    return mappable, X, Y, dslice
+
+def bs_hi_plot(fig, ax, n_tot, n_h, n_ch4, ux, swspeed, hdensity, params, direction, mccomas=False, depth=None, time_coords=False, fontsize=None, titlesize=25, labelsize=20, ticklabelsize=15, skip_labeling=False):
     """Plot bowshock, plutopause, and heavy ion tail defined as:
     bowshock: >20% slowing of the solar wind (defined explicitly in McComas 2016)
     plutopause: >70% exclusion of H+ (proxy for solar wind particles) (defined indirectly in McComas 2016)
-    heavy ion tail: >50% heavy ions (defined indirectly in McComas 2016)
+    heavy ion tail: >5e12 heavy ions per cubic kilometer (McComas just talks about a heavy ion dominated tail, but that's not exactly what I wanted to show).
     """
-    X, Y, n = plot_setup(ax, n_tot, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
-    X, Y, h = plot_setup(ax, n_h, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
-    X, Y, ch4 = plot_setup(ax, n_ch4, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
-    X, Y, v = plot_setup(ax, ux, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
+    X, Y, n = plot_setup(ax, n_tot, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize, skip_labeling=skip_labeling)
+    X, Y, h = plot_setup(ax, n_h, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize, skip_labeling=skip_labeling)
+    X, Y, ch4 = plot_setup(ax, n_ch4, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize, skip_labeling=skip_labeling)
+    X, Y, v = plot_setup(ax, ux, params, direction, depth, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize, skip_labeling=skip_labeling)
 
     bs_cont = ax.contourf(X.T, Y.T, v, levels=[-0.8*swspeed, 0], colors='b')
     pp_cont = ax.contourf(X.T, Y.T, h, levels=[0, 0.3*hdensity], colors='m')
-    hi_cont = ax.contourf(X.T,Y.T, ch4/n, levels=[.5,1], colors='r')
+    amount = np.ones_like(ch4)
+    amount[ch4<5e12] = 0.0
+    hi_cont = ax.contourf(X.T,Y.T, amount, levels=[.5,1], colors='r')
 
     return bs_cont, pp_cont, hi_cont
 
@@ -519,7 +553,7 @@ def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coo
         else:
             cb = fig.colorbar(mappable, cax=cax)
 
-        cb.ax.set_title(cbtitle)
+        cb.ax.set_title(cbtitle, fontsize=ticklabelsize)
 
     return mappable, X, Y, dslice
 
