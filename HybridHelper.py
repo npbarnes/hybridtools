@@ -158,7 +158,7 @@ parser.add_argument('--save', nargs='?', default=False, const=True,
 parser.add_argument('--save2', default=None,
         help='Provide a filename for the second figure if --separate-figures and --save are passed')
 
-parser.add_argument('--norm', type=LowerString, action=NormAction, default='linear',
+parser.add_argument('--norm', type=LowerString, action=NormAction, default=None,
                     help='Specify what scale to use and optionally a prameter.')
 
 parser.add_argument('--vmin', type=float, default=None, help='Specify minimum for the colorbar')
@@ -183,9 +183,25 @@ parser.add_argument('--units', default='')
 parser.add_argument('--style', help='Matplotlib style to use for the plot')
 parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1,
         help='The specific step number to read. Negative numbers count from the end')
+parser.add_argument('--no-aspect', dest='equal_aspect', action='store_false')
+
+parser.add_argument('--force-version', type=int, default=None)
+
+def get_pcolormesh_args(mesh):
+    x = mesh._coordinates[0,:,0]
+    y = mesh._coordinates[:,0,1]
+    c = mesh.get_array().reshape(len(y)-1,len(x)-1)
+
+    return x,y,c
+
+def build_pcolormesh_format_coord(mesh):
+    x,y,c = get_pcolormesh_args(mesh)
+    return build_format_coord(x,y,c)
 
 def build_format_coord(xx,yy,C):
     def format_coord(x,y):
+        nocolor = "x={0:1.4f}, y={1:1.4f}".format(x, y)
+
         if xx.ndim == 2:
             X = xx[0,:]
         else:
@@ -206,13 +222,10 @@ def build_format_coord(xx,yy,C):
         else:
             row = Y.size - np.searchsorted(Y[::-1], y, side='right')
 
-        row -= 1
-        col -= 1
+        if row < 0 or col < 0 or row >= C.shape[0] or col >= C.shape[1]:
+            return nocolor
 
-        try:
-            return "x={0:.4f}, y={1:.4f}, color={2:.4e}".format(x, y, C.T[row,col])
-        except IndexError:
-            return "x={0:1.4f}, y={1:1.4f}".format(x, y)
+        return nocolor+", color={0:.4e}".format(C[row,col])
 
     return format_coord
 
@@ -254,8 +267,9 @@ def init_figures(args):
         fig1.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, wspace=0.1)
         fig2 = fig1
 
-    ax1.set_aspect('equal', adjustable='box')
-    ax2.set_aspect('equal', adjustable='box')
+    if args.equal_aspect:
+        ax1.set_aspect('equal', adjustable='box')
+        ax2.set_aspect('equal', adjustable='box')
 
     return fig1, fig2, ax1, ax2
 

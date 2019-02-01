@@ -2,7 +2,8 @@
 import numpy as np
 from HybridReader2 import HybridReader2 as hr
 from HybridReader2 import NoSuchVariable
-from HybridHelper import parser, parse_cmd_line, init_figures, direct_plot, beta_plot2, bs_hi_plot, traj_plot, get_pluto_coords, streams, build_format_coord
+from HybridHelper import parser, parse_cmd_line, init_figures, direct_plot, beta_plot2, bs_hi_plot, traj_plot, get_pluto_coords, streams, build_format_coord, build_pcolormesh_format_coord
+from HybridParams import HybridParams as hp
 import matplotlib.pyplot as plt
 from matplotlib import colors, rcParams
 
@@ -14,6 +15,7 @@ def var_sanity_check(isScalar, coord):
 
 def plot_variable(fig1,fig2, ax1,ax2, args):
     ## Special cases first, the general case is direct_plot() at the bottom
+
     if args.variable.name == 'bs':
         hup = hr(args.prefix,'up')
         hn_tot = hr(args.prefix,'np')
@@ -203,6 +205,33 @@ def plot_variable(fig1,fig2, ax1,ax2, args):
                 titlesize=args.titlesize, 
                 labelsize=args.labelsize, 
                 ticklabelsize=args.ticklabelsize)
+    elif args.variable.name == 'upmag':
+        h = hr(args.prefix,'up')
+
+        data = h.get_timestep(args.stepnum)[-1]
+        data = np.linalg.norm(data, axis=-1)
+        para = h.para
+
+        m1, X1, Y1, C1 = direct_plot(fig1, ax1, data, para, 'xy', 
+                cmap=args.colormap,
+                norm=args.norm, 
+                vmin=args.vmin, 
+                vmax=args.vmax, 
+                mccomas=args.mccomas, 
+                titlesize=args.titlesize, 
+                labelsize=args.labelsize, 
+                ticklabelsize=args.ticklabelsize, 
+                cbtitle=args.units)
+        m2, X2, Y2, C2 = direct_plot(fig2, ax2, data, para, 'xz', 
+                cmap=args.colormap, 
+                norm=args.norm, 
+                vmin=args.vmin, 
+                vmax=args.vmax, 
+                mccomas=args.mccomas, 
+                titlesize=args.titlesize, 
+                labelsize=args.labelsize, 
+                ticklabelsize=args.ticklabelsize, 
+                cbtitle=args.units)
 
     else:
         h = hr(args.prefix,args.variable.name)
@@ -236,11 +265,161 @@ def plot_variable(fig1,fig2, ax1,ax2, args):
                 ticklabelsize=args.ticklabelsize, 
                 cbtitle=args.units)
 
+def get_1d_scalar(h):
+    steps, times, data = h.get_all_timesteps()
 
-    try:
-        # Custom format_coord shows the value under the mouse in the status line
-        # in addition to the coordinates of that point
-        ax1.format_coord = build_format_coord(X1, Y1, C1)
-        ax2.format_coord = build_format_coord(X2, Y2, C2)
-    except NameError:
-        pass
+    return steps, times, data[:,:,0,0]
+
+def get_1d_vector(h):
+    steps, times, data = h.get_all_timesteps()
+
+    return steps, times, data[:,:,0,0,:]
+
+def get_1d_magnetude(h):
+    steps, times, data = h.get_all_timesteps()
+
+    return steps, times, np.linalg.norm(data[:,:,0,0,:], axis=-1)
+
+def plot_1d_variable(fig, ax, args):
+    ## Handy parameters common to most plots first
+    c = 3e8 # speed of light in m/s
+    q = 1.602e-19 # C
+    m = 1.6726e-27 # kg
+    q_over_m = q/m # C/kg
+    e0 = 8.854e-12 # F/m
+    mu_0 = 1.257e-6
+
+    # Get upstream values
+    para = hp(args.prefix, force_version=args.force_version).para
+    B0 = para['b0_init']           # T  (yes, b0_init is already in Tesla. No need to convert.)
+    n0 = para['nf_init']/1000**3   # m^-3
+
+    # Some upstream parameters
+    omega_pi = np.sqrt(n0*q*q_over_m/e0) # rad/s
+    lambda_i = c/omega_pi # m
+    omega_ci = q_over_m*B0 # rad/s
+
+    ## Special cases first, the general case is the else block at the bottom
+    if args.variable.name == 'pressure':
+        steps, times, n = get_1d_scalar(hr(args.prefix, 'np_tot', force_version=args.force_version))
+        _, _, T = get_1d_scalar(hr(args.prefix, 'temp_tot', force_version=args.force_version))
+
+        # Convert units
+        n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
+        T = q * T                  # eV -> J
+
+        x = 1000*para['qx']/lambda_i # position in units of lambda_i
+        t = times*omega_ci # time in units of omega_ci^-1
+
+        pressure = n*T
+
+        mesh = ax.pcolormesh(t, x, pressure.T, 
+                cmap=args.colormap,
+                norm=args.norm,
+                vmin=args.vmin,
+                vmax=args.vmax)
+        ax.set_xlim(args.xlim)
+        ax.set_ylim(args.ylim)
+
+
+    elif args.variable.name == 'beta':
+        steps, times, n = get_1d_scalar(hr(args.prefix, 'np_tot', force_version=args.force_version))
+        _, _, T = get_1d_scalar(hr(args.prefix, 'temp_tot', force_version=args.force_version))
+        _, _, B = get_1d_vector(hr(args.prefix, 'bt', force_version=args.force_version))
+
+
+        # Convert units
+        n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
+        T = q * T                  # eV -> J
+        B = B/q_over_m # proton gyrofrequency -> T
+
+        # Compute B \cdot B
+        B2 = np.sum(B**2, axis=-1)
+
+        # Compute plasma beta
+        beta = n*T/(B2/(2*mu_0))
+
+        x = 1000*para['qx']/lambda_i # position in units of lambda_i
+        t = times*omega_ci # time in units of omega_ci^-1
+
+        mesh = ax.pcolormesh(t, x, beta.T, 
+                cmap=args.colormap,
+                norm=args.norm,
+                vmin=args.vmin,
+                vmax=args.vmax)
+        ax.set_xlim(args.xlim)
+        ax.set_ylim(args.ylim)
+
+    elif args.variable.name == 'bmag':
+        steps, times, B = get_1d_magnetude(hr(args.prefix, 'bt', force_version=args.force_version))
+
+        B = B/q_over_m # proton gyrofrequency -> T
+
+        x = 1000*para['qx']/lambda_i # position in units of lambda_i
+        t = times*omega_ci # time in units of omega_ci^-1
+
+        mesh = ax.pcolormesh(t, x, B.T, 
+                cmap=args.colormap,
+                norm=args.norm,
+                vmin=args.vmin,
+                vmax=args.vmax)
+        ax.set_xlim(args.xlim)
+        ax.set_ylim(args.ylim)
+
+    elif args.variable.name == 'brat':
+        steps, times, B = get_1d_magnetude(hr(args.prefix, 'bt', force_version=args.force_version))
+
+        B = B/q_over_m # proton gyrofrequency -> T
+
+        B = B/para['b0_init'] # Normalize
+
+        x = 1000*para['qx']/lambda_i # position in units of lambda_i
+        t = times*omega_ci # time in units of omega_ci^-1
+
+        mesh = ax.pcolormesh(t, x, B.T, 
+                cmap=args.colormap,
+                norm=args.norm,
+                vmin=args.vmin,
+                vmax=args.vmax)
+        ax.set_xlim(args.xlim)
+        ax.set_ylim(args.ylim)
+
+    elif args.variable.name == 'upmag':
+        steps, times, up = get_1d_magnetiude(hr(args.prefix, 'up', force_version=args.force_version))
+
+        x = 1000*para['qx']/lambda_i # position in units of lambda_i
+        t = times*omega_ci # time in units of omega_ci^-1
+
+        mesh = ax.pcolormesh(t, x, up.T, 
+                cmap=args.colormap,
+                norm=args.norm,
+                vmin=args.vmin,
+                vmax=args.vmax)
+        ax.set_xlim(args.xlim)
+        ax.set_ylim(args.ylim)
+
+    else:
+        h = hr(args.prefix,args.variable.name, force_version=args.force_version)
+        var_sanity_check(h.isScalar, args.variable.coordinate)
+
+        if h.isScalar:
+            steps, times, data = get_1d_scalar(h)
+        else:
+            steps, times, data = get_1d_vector(h)
+            data = data[:,:,args.variable.coordinate]
+
+        x = 1000*para['qx']/lambda_i # position in units of lambda_i
+        t = times*omega_ci # time in units of omega_ci^-1
+
+        mesh = ax.pcolormesh(t, x, data.T, 
+                cmap=args.colormap,
+                norm=args.norm,
+                vmin=args.vmin,
+                vmax=args.vmax)
+        ax.set_xlim(args.xlim)
+        ax.set_ylim(args.ylim)
+
+    ax.format_coord = build_pcolormesh_format_coord(mesh)
+
+    return mesh
+
