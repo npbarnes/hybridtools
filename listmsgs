@@ -4,12 +4,16 @@ import re
 import time
 import textwrap
 import argparse
+from subprocess import check_output
 from filesize import dir_size, human_dir_size
 
 date_regex = re.compile(r'(\d{4}-(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2})$')
 pluto_regex = re.compile(r'(pluto-(\d+))$')
 pid_regex = re.compile(r' PID\.\.\.\.\s+(\d+)(?:\r\n|\r|\n)')
 
+def get_running_pid(name):
+    result = check_output(['pidof', name])
+    return [int(pid) for pid in result.split()]
 def list_subdirs(root):
     return [os.path.join(root,d) for d in os.listdir(root) if os.path.isdir(os.path.join(root,d))]
 def list_files(root):
@@ -57,13 +61,23 @@ def primary_pid(sim_folder):
 
                 match = pid_regex.fullmatch(line)
                 if match:
-                    return match.group(1)
+                    return int(match.group(1))
         return None # No PID in the output file (and output file is less than max_lines lines)
     except FileNotFoundError:
         return None # No output file found
 
-def format_folder(regex, sort_key, sub_formatter, folder, indent_level, info=[]):
+running_hybrid_pids = get_running_pid('hybrid')
+def running_filter(path_match):
+    pid = primary_pid(path_match.string)
+    if pid in running_hybrid_pids:
+        return True
+    return False
+
+def format_folder(regex, sort_key, sub_formatter, folder, indent_level, info=[], filters=[]):
     matches = subdir_matches(regex, folder)
+    for f in filters:
+        matches = filter(f, matches)
+    matches = list(matches)
     matches.sort(key=sort_key)
     substrings = []
     for m in matches:
@@ -75,7 +89,11 @@ def format_folder(regex, sort_key, sub_formatter, folder, indent_level, info=[])
 
 def format_dates(folder, indent_level):
     return format_folder(date_regex, date_key, format_plutos, folder, indent_level, info=[human_dir_size])
+def format_running_dates(folder, indent_level):
+    return format_folder(date_regex, date_key, format_running_plutos, folder, indent_level, info=[human_dir_size])
 
+def format_running_plutos(folder, indent_level):
+    return format_folder(pluto_regex, pluto_number_key, format_message, folder, indent_level, info=[primary_pid, human_dir_size], filters=[running_filter])
 def format_plutos(folder, indent_level):
     return format_folder(pluto_regex, pluto_number_key, format_message, folder, indent_level, info=[primary_pid, human_dir_size])
 
@@ -99,6 +117,7 @@ def format_message(folder, indent_level, width=80):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--by-size', dest='bysize', action='store_true', help='If set, order messages by size of the folder')
+parser.add_argument('--running', dest='running', action='store_true', help='If set, only display messages of currently running simulations')
 args = parser.parse_args()
 
 if __name__ == '__main__':
@@ -114,6 +133,13 @@ if __name__ == '__main__':
             print(format_date_sizes(root, 0))
         if plutos:
             print(format_pluto_sizes(root, 0))
+        if ishybrid:
+            print(format_message(root, 0))
+    elif args.running:
+        if dates:
+            print(format_running_dates(root, 0))
+        if plutos:
+            print(format_running_plutos(root, 0))
         if ishybrid:
             print(format_message(root, 0))
     else:
