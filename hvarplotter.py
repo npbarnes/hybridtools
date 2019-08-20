@@ -105,6 +105,8 @@ def plot_variable(fig1,fig2, ax1,ax2, args):
 
         m1, X1, Y1, C1 = beta_plot2(ax1, data, para, 'xy', mccomas=args.mccomas)
         m2, X2, Y2, C2 = beta_plot2(ax2, data, para, 'xz', mccomas=args.mccomas)
+        fig1.colorbar(m1, ax=ax1)
+        fig2.colorbar(m2, ax=ax2)
 
         args.variable = 'Plasma Beta'
 
