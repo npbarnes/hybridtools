@@ -171,6 +171,10 @@ parser.add_argument('--ticklabelsize', type=float, default=15)
 parser.add_argument('--refinement', type=int, default=0)
 parser.add_argument('--no-traj', dest='traj', action='store_false')
 parser.add_argument('--separate-figures', dest='separate', action='store_true')
+parser.add_argument('--xy', action='store_true', default=None)
+parser.add_argument('--xz', action='store_true', default=None)
+parser.add_argument('--yz', action='store_true', default=None)
+parser.add_argument('--single-fig', action='store_true', default=None)
 parser.add_argument('--title', default=None)
 parser.add_argument('--title2', default=None)
 parser.add_argument('--units', default='')
@@ -207,6 +211,14 @@ def build_format_coord(xx,yy,C):
 def parse_cmd_line():
     args = parser.parse_args()
 
+    if args.separate:
+        args.xy = True
+        args.xz = True
+        args.yz = False
+
+    if not args.separate and not args.xy and not args.xz and not args.yz:
+        args.single_fig = True
+
     if args.fontsize:
         raise RuntimeError("The --fontsize argument is depreciated, use --titlesize, --labelsize, and --ticklabelsize.")
 
@@ -219,6 +231,14 @@ def parse_cmd_line():
     if args.title2 is None:
         args.title2 = args.title
 
+    args.directions = []
+    if args.xy:
+        args.directions.append('xy')
+    if args.xz:
+        args.directions.append('xz')
+    if args.yz:
+        args.directions.append('yz')
+
     return args
 
 def init_figures(args):
@@ -227,15 +247,14 @@ def init_figures(args):
         fig2 = plt.figure()
         ax1 = fig1.add_subplot(111)
         ax2 = fig2.add_subplot(111)
-
     else:
         fig1, (ax1, ax2) = plt.subplots(ncols=2, sharex=True, sharey=True,
                 figsize=(2*rcParams['figure.figsize'][0], 0.8*rcParams['figure.figsize'][1]))
         fig1.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, wspace=0.1)
         fig2 = fig1
 
-    ax1.set_aspect('equal', adjustable='box')
-    ax2.set_aspect('equal', adjustable='box')
+    ax1.set_aspect('equal', adjustable='datalim')
+    ax2.set_aspect('equal', adjustable='datalim')
 
     return fig1, fig2, ax1, ax2
 
@@ -365,13 +384,8 @@ def get_next_beta_slice(hn, hT, hB, direction, coordinate=None, depth=None):
         depth = depth if depth is not None else infodict['cx']
         return data[depth,:,:]
 
-def get_next_slice(h, direction, coordinate=None, depth=None):
-    infodict = get_pluto_coords(h.para)
-    data = h.get_next_timestep()[-1]
-    if not h.isScalar:
-        assert coordinate is not None
-        data = data[:,:,:,args.variable.coordinate]
-
+def data_slice(para, data, direction, coordinate=None, depth=None):
+    infodict = get_pluto_coords(para)
     if direction == 'xy':
         depth = depth if depth is not None else infodict['cz']
         return data[:,:,depth]
@@ -383,6 +397,17 @@ def get_next_slice(h, direction, coordinate=None, depth=None):
     elif direction == 'yz':
         depth = depth if depth is not None else infodict['cx']
         return data[depth,:,:]
+    else:
+        raise ValueError("direction must be one of xy, xz, or yz")
+
+def get_next_slice(h, direction, coordinate=None, depth=None):
+    data = h.get_next_timestep()[-1]
+    if not h.isScalar:
+        assert coordinate is not None
+        data = data[:,:,:,args.variable.coordinate]
+
+    return data_slice(h.para, data, direction, coordinate, depth)
+
 
 def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=None, mccomas=False, titlesize=25, labelsize=20, ticklabelsize=15):
     infodict = get_pluto_coords(params)
