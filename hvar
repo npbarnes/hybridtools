@@ -2,7 +2,7 @@
 import numpy as np
 from HybridReader2 import HybridReader2 as hr
 from HybridReader2 import NoSuchVariable
-from HybridHelper import parser, parse_cmd_line, init_figures, direct_plot, beta_plot2, bs_hi_plot, traj_plot, get_pluto_coords, streams, build_format_coord
+from HybridHelper import parser, parse_cmd_line, init_figures, direct_plot, bs_hi_plot, traj_plot, get_pluto_coords, streams, build_format_coord
 import matplotlib.pyplot as plt
 from matplotlib import colors, rcParams
 from hvarplotter import plot_variable
