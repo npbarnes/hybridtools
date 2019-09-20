@@ -364,9 +364,9 @@ def get_pluto_coords(para):
     qzrange = para['qzrange']
 
     # Find the center index of the grid
-    cx = para['nx']/2
-    cy = para['ny']/2
-    cz = para['zrange']/2
+    cx = para['nx']//2
+    cy = para['ny']//2
+    cz = para['zrange']//2
 
     # the offset of pluto from the center isn't always availible
     try:
@@ -376,9 +376,9 @@ def get_pluto_coords(para):
         po = 30
 
     # Shift grid so that Pluto lies at (0,0,0) and convert from km to Rp
-    qx = (qx - qx[len(qx)/2 + po])/Rp
-    qy = (qy - qy[len(qy)/2])/Rp
-    qzrange = (qzrange - qzrange[len(qzrange)/2])/Rp
+    qx = (qx - qx[len(qx)//2 + po])/Rp
+    qy = (qy - qy[len(qy)//2])/Rp
+    qzrange = (qzrange - qzrange[len(qzrange)//2])/Rp
 
     infodict = {'px':qx,'py':qy,'pz':qzrange,'cx':cx,'cy':cy,'cz':cz, 'po':po}
 
@@ -457,7 +457,7 @@ def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=N
     elif direction == 'yz':
         default = np.abs(infodict['px'] - (-15.0)).argmin()
         depth = depth if depth is not None else default
-        print 'X = {}'.format(infodict['px'][depth])
+        print('X = {}'.format(infodict['px'][depth]))
         dslice = data[depth,:,:]
         x,y = infodict['py'], infodict['pz']
         if not skip_labeling:
