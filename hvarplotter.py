@@ -95,7 +95,7 @@ def plot_variable(fig1,fig2, ax1,ax2, args):
         # Convert units
         n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
         T = 1.60218e-19 * T                  # eV -> J
-        B = 1.6726219e-27/1.60217662e-19 * B # proton gyrofrequency -> T
+        B = para['ion_amu']*1.6726219e-27/1.60217662e-19 * B # ion gyrofrequency -> T
 
         # Compute B \cdot B
         B2 = np.sum(B**2, axis=-1)
@@ -114,7 +114,7 @@ def plot_variable(fig1,fig2, ax1,ax2, args):
         hb = hr(args.prefix, 'bt')
         para = hb.para
         B = hb.get_timestep(args.stepnum)[-1]
-        B = 1.6726219e-27/1.60217662e-19 * B # proton gyrofrequency -> T
+        B = para['ion_amu']*1.6726219e-27/1.60217662e-19 * B # ion gyrofrequency -> T
         Bmag = np.sqrt(np.sum(B**2, axis=-1))
         data = Bmag
 
@@ -147,7 +147,7 @@ def plot_variable(fig1,fig2, ax1,ax2, args):
 
         n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
         T = 1.60218e-19 * T                  # eV -> J
-        B = 1.6726219e-27/1.60217662e-19 * B # proton gyrofrequency -> T
+        B = para['ion_amu']*1.6726219e-27/1.60217662e-19 * B # ion gyrofrequency -> T
 
         B2 = np.sum(B**2, axis=-1)
 
@@ -243,7 +243,7 @@ def plot_variable(fig1,fig2, ax1,ax2, args):
         if not h.isScalar:
             data = data[:,:,:,args.variable.coordinate]
         if str(args.variable).startswith('bt'):
-            data = 1e9 * 1.6726219e-27/1.60217662e-19 * data # proton gyrofrequency -> nT
+            data = h.para['ion_amu']*1.6726219e-27/1.60217662e-19 * data # ion gyrofrequency -> T
         para = h.para
 
         m1, X1, Y1, C1 = direct_plot(fig1, ax1, data, para, 'xy', 
@@ -283,18 +283,19 @@ def get_1d_magnetude(h):
     return steps, times, np.linalg.norm(data[:,:,0,0,:], axis=-1)
 
 def plot_1d_variable(fig, ax, args):
-    ## Handy parameters common to most plots first
-    c = 3e8 # speed of light in m/s
-    q = 1.602e-19 # C
-    m = 1.6726e-27 # kg
-    q_over_m = q/m # C/kg
-    e0 = 8.854e-12 # F/m
-    mu_0 = 1.257e-6
 
     # Get upstream values
     para = hp(args.prefix, force_version=args.force_version).para
     B0 = para['b0_init']           # T  (yes, b0_init is already in Tesla. No need to convert.)
     n0 = para['nf_init']/1000**3   # m^-3
+
+    ## Handy parameters common to most plots
+    c = 3e8 # speed of light in m/s
+    q = 1.602e-19 # C
+    m = para['ion_amu']*1.6726e-27 # kg
+    q_over_m = q/m # C/kg
+    e0 = 8.854e-12 # F/m
+    mu_0 = 1.257e-6
 
     # Some upstream parameters
     omega_pi = np.sqrt(n0*q*q_over_m/e0) # rad/s
@@ -333,7 +334,7 @@ def plot_1d_variable(fig, ax, args):
         # Convert units
         n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
         T = q * T                  # eV -> J
-        B = B/q_over_m # proton gyrofrequency -> T
+        B = B/q_over_m # ion gyrofrequency -> T
 
         # Compute B \cdot B
         B2 = np.sum(B**2, axis=-1)
@@ -355,7 +356,7 @@ def plot_1d_variable(fig, ax, args):
     elif args.variable.name == 'bmag':
         steps, times, B = get_1d_magnetude(hr(args.prefix, 'bt', force_version=args.force_version))
 
-        B = B/q_over_m # proton gyrofrequency -> T
+        B = B/q_over_m # ion gyrofrequency -> T
 
         x = 1000*para['qx']/lambda_i # position in units of lambda_i
         t = times*omega_ci # time in units of omega_ci^-1
@@ -371,7 +372,7 @@ def plot_1d_variable(fig, ax, args):
     elif args.variable.name == 'brat':
         steps, times, B = get_1d_magnetude(hr(args.prefix, 'bt', force_version=args.force_version))
 
-        B = B/q_over_m # proton gyrofrequency -> T
+        B = B/q_over_m # ion gyrofrequency -> T
 
         B = B/para['b0_init'] # Normalize
 

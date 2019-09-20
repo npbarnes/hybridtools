@@ -563,11 +563,20 @@ def redblue_plot(fig, ax, heavy, params, direction, depth=None, time_coords=Fals
     mappable = ax.pcolormesh(X,Y,ratio.transpose(), cmap='coolwarm', vmin=0, vmax=1)
     return mappable
 
+def scientific_format(digits=2):
+    fmt_str = '{{:.{}e}}'.format(digits)
+    def fmt(x, pos):
+        a, b = fmt_str.format(x).split('e')
+        b = int(b)
+        return r'${} \times 10^{{{}}}$'.format(a,b)
+    return fmt
+
 def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coords=False, fontsize=None, mccomas=False, titlesize=25, labelsize=20, ticklabelsize=15, cbtitle='', **kwargs):
     X, Y, dslice = plot_setup(ax, data, params, direction, depth, time_coords, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
 
     mappable = ax.pcolormesh(X,Y,dslice.transpose(), **kwargs)
 
+    fmt = plticker.FuncFormatter(scientific_format(digits=1))
     if cax != 'None':
         if cax == None:
             if 'SymLogNorm' in repr(kwargs['norm']):
@@ -575,9 +584,9 @@ def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coo
             elif 'LogNorm' in repr(kwargs['norm']):
                 cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=plticker.LogLocator())
             else:
-                cb = fig.colorbar(mappable, ax=ax, shrink=0.7)
+                cb = fig.colorbar(mappable, ax=ax, shrink=0.7, format=fmt)
         else:
-            cb = fig.colorbar(mappable, cax=cax)
+            cb = fig.colorbar(mappable, cax=cax, format=fmt)
 
         cb.ax.set_title(cbtitle, fontsize=ticklabelsize)
 
