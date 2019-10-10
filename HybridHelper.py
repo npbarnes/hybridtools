@@ -571,8 +571,8 @@ def scientific_format(digits=2):
         return r'${} \times 10^{{{}}}$'.format(a,b)
     return fmt
 
-def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coords=False, fontsize=None, mccomas=False, titlesize=25, labelsize=20, ticklabelsize=15, cbtitle='', **kwargs):
-    X, Y, dslice = plot_setup(ax, data, params, direction, depth, time_coords, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize)
+def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coords=False, fontsize=None, mccomas=False, titlesize=25, labelsize=20, ticklabelsize=15, cbtitle='', skip_labeling=False, **kwargs):
+    X, Y, dslice = plot_setup(ax, data, params, direction, depth, time_coords, fontsize=fontsize, mccomas=mccomas, titlesize=titlesize, labelsize=labelsize, ticklabelsize=ticklabelsize, skip_labeling=skip_labeling)
 
     mappable = ax.pcolormesh(X,Y,dslice.transpose(), **kwargs)
 
