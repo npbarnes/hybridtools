@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib import colors, rcParams
 from hvarplotter import plot_variable
 
+parser.add_argument('--save2')
 parser.add_argument('--streamlines', action='store_true')
 parser.add_argument('--beta_limits', type=int, nargs=2)
 parser.add_argument('--plutostyle', action='store_true')

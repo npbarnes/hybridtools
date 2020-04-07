@@ -1,17 +1,17 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 import sys
 from filesize import dir_size, human_size
 from FortranFile import FortranFile, IntegrityError
 
-print "This operation will delete data."
-print "Are you sure you want to do this? (yes/no)"
-answer = raw_input()
+print("This operation will delete data.")
+print("Are you sure you want to do this? (yes/no)")
+answer = input()
 if answer != 'yes':
-    print "exiting"
+    print("exiting")
     sys.exit()
 
-print "Working..."
+print("Working...")
 
 def safe_overwrite(original, replacement, tmp_path):
     os.rename(original, tmp_path)
@@ -59,4 +59,4 @@ after_size = dir_size(grid_dir) + dir_size(part_dir)
 saved = before_size - after_size
 
 
-print "You saved " + human_size(saved)
+print("You saved " + human_size(saved))

@@ -365,7 +365,7 @@ class MyLogNorm(Normalize):
         if self.vmax is None and A.size:
             self.vmax = A.max()
 
-def get_pluto_coords(para):
+def get_coords(para):
     # Get grid spacing
     qx = para['qx']
     qy = para['qy']
@@ -380,17 +380,28 @@ def get_pluto_coords(para):
     try:
         po = para['pluto_offset']
     except KeyError:
-        print("Couldn't get pluto_offset. It has been assumed to be 30, but it probably isn't.")
-        po = 30
+        print("Couldn't get pluto_offset. It has been assumed to be 0, but it probably isn't.")
+        po = 0
 
-    # Shift grid so that Pluto lies at (0,0,0) and convert from km to Rp
-    qx = (qx - qx[len(qx)//2 + po])/Rp
-    qy = (qy - qy[len(qy)//2])/Rp
-    qzrange = (qzrange - qzrange[len(qzrange)//2])/Rp
+    # Shift grid so that Pluto lies at (0,0,0)
+    qx = (qx - qx[len(qx)//2 + po])
+    qy = (qy - qy[len(qy)//2])
+    qzrange = (qzrange - qzrange[len(qzrange)//2])
 
     infodict = {'px':qx,'py':qy,'pz':qzrange,'cx':cx,'cy':cy,'cz':cz, 'po':po}
 
     return infodict
+
+def get_scaled_coords(para, scale):
+    infodict = get_coords(para)
+    infodict['px'] /= scale
+    infodict['py'] /= scale
+    infodict['pz'] /= scale
+
+    return infodict
+
+def get_pluto_coords(para):
+    return get_scaled_coords(para, Rp)
 
 def get_next_beta_slice(hn, hT, hB, direction, coordinate=None, depth=None):
     infodict = get_pluto_coords(hn.para)
