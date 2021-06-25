@@ -16,6 +16,7 @@ import warnings
 
 # Set constant for Pluto radius 
 Rp = 1187. # km
+#Rp = 1. # km
 
 def streams(ax, x, y, u, v, *args, **kwargs):
     """Make a streamplot on a non-uniform grid.
@@ -224,6 +225,10 @@ def build_format_coord(xx,yy,C):
         else:
             row = Y.size - np.searchsorted(Y[::-1], y, side='right')
 
+        # I don't know why this line needs to be here.
+        # I was off by one and this fixes it.
+        row -= 1
+        col -= 1
         if row < 0 or col < 0 or row >= C.shape[0] or col >= C.shape[1]:
             return nocolor
 
@@ -607,7 +612,7 @@ def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coo
     if cax != 'None':
         if cax == None:
             if 'SymLogNorm' in repr(kwargs['norm']):
-                cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=plticker.SymmetricalLogLocator(linthresh=0.01, base=10))
+                cb = fig.colorbar(mappable, ax=ax, ticks=plticker.SymmetricalLogLocator(linthresh=0.01, base=10))
             elif 'LogNorm' in repr(kwargs['norm']):
                 cb = fig.colorbar(mappable, ax=ax, shrink=0.7, ticks=plticker.LogLocator())
             else:
@@ -616,6 +621,7 @@ def direct_plot(fig, ax, data, params, direction, depth=None, cax=None, time_coo
             cb = fig.colorbar(mappable, cax=cax, format=fmt)
 
         cb.ax.set_title(cbtitle, fontsize=ticklabelsize)
+        cb.ax.tick_params(labelsize=16)
 
     return mappable, X, Y, dslice
 
