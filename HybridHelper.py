@@ -1,7 +1,7 @@
 import argparse
 import numpy as np
 import matplotlib as mpl
-from matplotlib.colors import Normalize, LogNorm, SymLogNorm, ListedColormap
+from matplotlib.colors import Normalize, LogNorm, SymLogNorm, CenteredNorm, ListedColormap
 from matplotlib import rcParams
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
@@ -120,27 +120,17 @@ class NormAction(argparse.Action):
         super(NormAction, self).__init__(option_strings, dest, nargs='+', **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
+        norm_args = [float(v) for v in values[1:]]
         if values[0] == 'linear':
-            if len(values) != 1:
-                raise argparse.ArgumentError(option_string, 'Options for the linear norm are not supported')
-            setattr(namespace, self.dest, None)
-
+            setattr(namespace, self.dest, Normalize(*norm_args))
         elif values[0] == 'log':
-            if len(values) != 1:
-                raise argparse.ArgumentError(option_string, 'Options for the log norm are not supported')
-            setattr(namespace, self.dest, LogNorm())
-
+            setattr(namespace, self.dest, LogNorm(*norm_args))
         elif values[0] == 'symlog':
-            if len(values) > 2:
-                raise argparse.ArgumentError(option_string, 
-                        'Optionally specify the linear range, otherwise a default will be used')
-            if len(values) == 2:
-                setattr(namespace, self.dest, SymLogNorm(int(values[1])))
-            elif len(values) == 1:
-                setattr(namespace, self.dest, SymLogNorm(0.001))
-
+            setattr(namespace, self.dest, SymLogNorm(*norm_args))
+        elif values[0] == 'centered':
+            setattr(namespace, self.dest, CenteredNorm(*norm_args))
         else:
-            raise argparse.ArgumentError(option_string, 'Choose between linear, log, or symlog')
+            raise argparse.ArgumentError(option_string, 'Choose between linear, log, symlog, and centered')
 
 def limittype(s):
     if s == 'auto':
