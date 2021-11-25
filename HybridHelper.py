@@ -15,8 +15,8 @@ from streamplot import streamplot
 import warnings
 
 # Set constant for Pluto radius 
-Rp = 1187. # km
-#Rp = 1. # km
+#Rp = 1187. # km
+SCALE = 1. # km
 
 def streams(ax, x, y, u, v, *args, **kwargs):
     """Make a streamplot on a non-uniform grid.
@@ -159,17 +159,15 @@ parser.add_argument('--zlim', type=limittype, default=None, nargs=2, help='Set t
 parser.add_argument('--mccomas', action='store_true', 
     help='Set to arrange the plot in the (-x, transverse) plane instead of the default (x,y) plane')
 
-parser.add_argument('--fontsize', type=float, default=None)
 parser.add_argument('--titlesize', type=float, default=25)
 parser.add_argument('--labelsize', type=float, default=20)
 parser.add_argument('--ticklabelsize', type=float, default=15)
 parser.add_argument('--refinement', type=int, default=0)
-parser.add_argument('--no-traj', dest='traj', action='store_false')
-parser.add_argument('--separate-figures', dest='separate', action='store_true')
+parser.add_argument('--traj', dest='traj', action='store_true')
+#parser.add_argument('--separate-figures', dest='separate', action='store_true')
 parser.add_argument('--xy', action='store_true', default=None)
 parser.add_argument('--xz', action='store_true', default=None)
 parser.add_argument('--yz', action='store_true', default=None)
-parser.add_argument('--single-fig', action='store_true', default=None)
 parser.add_argument('--title', default=None)
 parser.add_argument('--title2', default=None)
 parser.add_argument('--units', default='')
@@ -179,6 +177,7 @@ parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1,
 parser.add_argument('--no-aspect', dest='equal_aspect', action='store_false')
 
 parser.add_argument('--force-version', type=int, default=None)
+parser.add_argument('--scale-factor', type=float, default=1.0)
 
 def get_pcolormesh_args(mesh):
     x = mesh._coordinates[0,:,0]
@@ -226,27 +225,11 @@ def build_format_coord(xx,yy,C):
 
     return format_coord
 
-def hybrid_parse(cmd_args=None):
-    args = parser.parse_args(cmd_args)
+def parse_cmd_line():
+    args = parser.parse_args()
+    global SCALE
+    SCALE = args.scale_factor
 
-    if args.separate:
-        args.xy = True
-        args.xz = True
-        args.yz = False
-
-    if not args.separate and not args.xy and not args.xz and not args.yz:
-        args.single_fig = True
-
-    if args.separate:
-        args.xy = True
-        args.xz = True
-        args.yz = False
-
-    if not args.separate and not args.xy and not args.xz and not args.yz:
-        args.single_fig = True
-
-    if args.fontsize:
-        raise RuntimeError("The --fontsize argument is depreciated, use --titlesize, --labelsize, and --ticklabelsize.")
 
     if args.save is True:
         args.save = str(args.variable)
@@ -268,27 +251,24 @@ def hybrid_parse(cmd_args=None):
     if args.yz:
         args.directions.append('yz')
 
+    if len(args.directions) == 0:
+        args.xy = True
+        args.xz = True
+        args.directions = ['xy','xz']
+    elif len(args.directions) == 3:
+        print("Warning: hvar will only plot the first two directions")
+
     return args
 
-def parse_cmd_line():
-    return hybrid_parse()
-
 def init_figures(args):
-    if args.separate:
-        fig1 = plt.figure()
-        fig2 = plt.figure()
-        ax1 = fig1.add_subplot(111)
-        ax2 = fig2.add_subplot(111)
-    else:
-        fig1, (ax1, ax2) = plt.subplots(ncols=2, sharex=True, sharey=True,
-                figsize=(2*rcParams['figure.figsize'][0], 0.8*rcParams['figure.figsize'][1]))
-        fig1.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, wspace=0.1)
-        fig2 = fig1
+    figs = []
+    axs = []
+    for d in args.directions:
+        figs.append(plt.figure())
+        axs.append(figs[-1].add_subplot(111))
+        axs[-1].set_aspect('equal', adjustable='datalim')
 
-    ax1.set_aspect('equal', adjustable='datalim')
-    ax2.set_aspect('equal', adjustable='datalim')
-
-    return fig1, fig2, ax1, ax2
+    return figs, axs
 
 class MyLogNorm(Normalize):
     """
@@ -396,7 +376,7 @@ def get_scaled_coords(para, scale):
     return infodict
 
 def get_pluto_coords(para):
-    return get_scaled_coords(para, Rp)
+    return get_scaled_coords(para, SCALE)
 
 def get_next_beta_slice(hn, hT, hB, direction, coordinate=None, depth=None):
     infodict = get_pluto_coords(hn.para)
@@ -465,16 +445,16 @@ def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=N
         dslice = data[:,:,depth]
         x,y = infodict['px'], infodict['py']
         if not skip_labeling:
-            ax.set_xlabel('$X$ ($R_p$)', fontsize=labelsize)
-            ax.set_ylabel('Transverse ($R_p$)' if mccomas else 'Y ($R_p$)', fontsize=labelsize)
+            ax.set_xlabel('$X$', fontsize=labelsize)
+            ax.set_ylabel('Transverse' if mccomas else 'Y', fontsize=labelsize)
 
     elif direction == 'xz':
         depth = depth if depth is not None else infodict['cy']
         dslice = data[:,depth,:]
         x,y = infodict['px'], infodict['pz']
         if not skip_labeling:
-            ax.set_xlabel('$X$ ($R_p$)', fontsize=labelsize)
-            ax.set_ylabel('$Z$ ($R_p$)', fontsize=labelsize)
+            ax.set_xlabel('$X$', fontsize=labelsize)
+            ax.set_ylabel('$Z$', fontsize=labelsize)
 
     elif direction == 'yz':
         default = np.abs(infodict['px'] - (-15.0)).argmin()
@@ -483,8 +463,8 @@ def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=N
         dslice = data[depth,:,:]
         x,y = infodict['py'], infodict['pz']
         if not skip_labeling:
-            ax.set_xlabel('$Y$ ($R_p$)', fontsize=labelsize)
-            ax.set_ylabel('$Z$ ($R_p$)', fontsize=labelsize)
+            ax.set_xlabel('$Y$', fontsize=labelsize)
+            ax.set_ylabel('$Z$', fontsize=labelsize)
 
     else:
         raise ValueError("direction must be one of 'xy', 'xz', or 'yz'")
@@ -492,7 +472,7 @@ def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=N
     if time_coords:
         # Don't pass in mccomas=True since the x variable is always internal coordinates in this function
         # assuming data is coming directly from the simulation.
-        x = [spice_tools.time_at_pos(xx*Rp, mccomas=False) for xx in x]
+        x = [spice_tools.time_at_pos(xx*SCALE, mccomas=False) for xx in x]
     X,Y = np.meshgrid(x, y)
 
     if mccomas:
