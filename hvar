@@ -2,7 +2,7 @@
 import numpy as np
 from HybridReader2 import HybridReader2 as hr
 from HybridReader2 import NoSuchVariable
-from HybridHelper import parser, parse_cmd_line, init_figures, direct_plot, bs_hi_plot, traj_plot, get_pluto_coords, streams, build_format_coord
+from HybridHelper import parser, parse_cmd_line, init_figures, direct_plot, bs_hi_plot, traj_plot, get_pluto_coords, streams, build_pcolormesh_format_coord
 import matplotlib.pyplot as plt
 from matplotlib import colors, rcParams
 from hvarplotter import plot_variable
@@ -13,7 +13,7 @@ parser.add_argument('--beta_limits', type=int, nargs=2)
 parser.add_argument('--plutostyle', action='store_true')
 args = parse_cmd_line()
 
-fig1, fig2, ax1, ax2 = init_figures(args)
+(fig1, fig2), (ax1, ax2) = init_figures(args)
 
 ## This function is really the main part of the program
 ## It plots the appropriate variable, typically as a pcolormesh
@@ -70,38 +70,26 @@ if args.traj:
 
 ## Set axis limits, labels, titles
 ##################################
-if args.separate:
-    if args.ylim is not None:
-        ax1.set_ylim(*args.ylim)
-        ax2.set_ylim(*args.ylim)
-    if args.xlim is not None:
-        ax1.set_xlim(*args.xlim)
-        ax2.set_xlim(*args.xlim)
-else:
-    # Since axes are shared and aspect is equal this changes all limits.
-    ax1.autoscale('tight')
-    if args.ylim is not None:
-        ax1.set_ylim(*args.ylim)
-    if args.xlim is not None:
-        ax1.set_xlim(*args.xlim)
+if args.ylim is not None:
+    ax1.set_ylim(*args.ylim)
+    ax2.set_ylim(*args.ylim)
+if args.xlim is not None:
+    ax1.set_xlim(*args.xlim)
+    ax2.set_xlim(*args.xlim)
 
 # Making axes shared automatically hides the yaxis tick labels. This makes them visible again.
 for tk in ax2.get_yticklabels():
     tk.set_visible(True)
 
-if args.separate:
-    ax1.set_title(args.title,  fontsize=args.titlesize)
-    ax2.set_title(args.title2, fontsize=args.titlesize)
-else:
-    fig1.suptitle(args.title, fontsize=args.titlesize)
+ax1.set_title(args.title,  fontsize=args.titlesize)
+ax2.set_title(args.title2, fontsize=args.titlesize)
 
 
 ## Save or show
 ###############
 if args.save:
     fig1.savefig(args.save, bbox_inches='tight')
-    if args.separate:
-        fig2.savefig(args.save2, bbox_inches='tight')
+    fig2.savefig(args.save2, bbox_inches='tight')
 
 else:
     plt.show()

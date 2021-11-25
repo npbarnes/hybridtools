@@ -117,6 +117,71 @@ def format_message(folder, indent_level, width=80):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--by-size', dest='bysize', action='store_true', help='If set, order messages by size of the folder')
+parser.add_argument('--no-check', dest='check_folder', action='store_false', 
+        help='Turn off the check for being in the data folder.')
+parser.add_argument('--override-folder', dest='override', action='store_true')
+args = parser.parse_args()
+
+def getallmsgdata():
+    cwd = os.getcwd()
+    if not args.override and '/data' not in cwd and args.check_folder:
+        raise RuntimeError('You need to start in the data folder or one of its subfolders')
+
+    msg_dirs = []
+    dir_sizes = []
+    for (dirpath,dirnames,filenames) in os.walk(cwd):
+        if 'message' in filenames:
+            msg_dirs.append(os.path.join(dirpath,'message'))
+            #dir_sizes.append(dir_size(dirpath))
+
+    def getmsg(f):
+        fh = open(f)
+        ret = fh.read()
+        fh.close()
+        return ret
+
+    msgs = [getmsg(msg_dir) for msg_dir in msg_dirs]
+
+    #return list(zip(msg_dirs, dir_sizes, msgs))
+    return list(zip(msg_dirs, msgs))
+
+def getdatematch(string):
+    """Return date string"""
+    return re.search('data/(.+)/pluto-',string)
+def getdatestring(string):
+    match = getdatematch(string)
+    if match:
+        return match.group(1)
+    else:
+        return '9999-Mon-Jan-01'
+def getdate(string):
+    try:
+        return time.strptime(getdatestring(string), '%Y-%a-%b-%d')
+    except ValueError:
+        return time.strptime('9999-Mon-Jan-01', '%Y-%a-%b-%d')
+
+def getplutomatch(string):
+    return re.search('pluto-(\d+)',string)
+def getplutonumber(string):
+    match = getplutomatch(string)
+    if match:
+        return int(match.group(1))
+    else:
+        return 0
+def getplutostring(string):
+    match = getplutomatch(string)
+    if match:
+        return match.group(0)
+    else:
+        return 'pluto-0'
+
+def datekey(item):
+    date = getdate(item[0])
+    pluto = getplutonumber(item[0])
+    return (date,pluto)
+def sizekey(item):
+    return item[1]
+
 parser.add_argument('--running', dest='running', action='store_true', help='If set, only display messages of currently running simulations')
 parser.add_argument('--reversed', action='store_true', help='Reverse the date folder sorting.')
 args = parser.parse_args()
@@ -151,3 +216,7 @@ if __name__ == '__main__':
         if ishybrid:
             print(format_message(root, 0))
 
+    #for (f,size,msg) in lst:
+    for (f,msg) in lst:
+        print(getdatestring(f) + '/' + getplutostring(f))# + ' : ' + human_size(size))
+        print(textwrap.fill(msg, width=80, initial_indent='    ', subsequent_indent='    '))
