@@ -29,3 +29,6 @@ def human_size(num_bytes):
         return format_string.format(quotient, unit)
     else:
         raise ValueError('num_bytes must be positive')
+
+def human_dir_size(path):
+    return human_size(dir_size(path))

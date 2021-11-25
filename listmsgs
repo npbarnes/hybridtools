@@ -1,75 +1,153 @@
-#!/bin/env python3
+#!/usr/bin/env python3
 import os
 import re
 import time
 import textwrap
 import argparse
-from filesize import dir_size, human_size
+from subprocess import check_output
+from filesize import dir_size, human_dir_size
+
+date_regex = re.compile(r'(\d{4}-(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2})$')
+pluto_regex = re.compile(r'(pluto-(\d+))$')
+pid_regex = re.compile(r' PID\.\.\.\.\s+(\d+)(?:\r\n|\r|\n)')
+
+def get_running_pid(name):
+    result = check_output(['pidof', name])
+    return [int(pid) for pid in result.split()]
+def list_subdirs(root):
+    return [os.path.join(root,d) for d in os.listdir(root) if os.path.isdir(os.path.join(root,d))]
+def list_files(root):
+    return [os.path.join(root,f) for f in os.listdir(root) if os.path.isfile(os.path.join(root,f))]
+
+def date_key(match):
+    return time.strptime(match.group(1), '%Y-%a-%b-%d')
+def pluto_number_key(match):
+    return int(match.group(2))
+def size_key(match):
+    return dir_size(match.string)
+
+def subdir_matches(regex, folder):
+    subdirs = list_subdirs(folder)
+    ret = []
+    for s in subdirs:
+        match = regex.search(s)
+        if match:
+            ret.append(match)
+
+    return ret
+
+def contains_hybrid_sim(folder):
+    files = list_files(folder)
+
+    hyb = False
+    inputs = False
+    for f in files:
+        ff = os.path.basename(f)
+        if ff == 'hybrid':
+            hyb = True
+        if ff == 'inputs.dat':
+            inputs = True
+    return hyb and inputs
+
+def primary_pid(sim_folder):
+    if not contains_hybrid_sim(sim_folder):
+        return None # No hybrid simulation found
+    max_lines = 50
+
+    try:
+        with open(os.path.join(sim_folder, 'output')) as f:
+            for i, line in enumerate(f):
+                if i > max_lines:
+                    return None # No PID within max_lines of the top
+
+                match = pid_regex.fullmatch(line)
+                if match:
+                    return int(match.group(1))
+        return None # No PID in the output file (and output file is less than max_lines lines)
+    except FileNotFoundError:
+        return None # No output file found
+
+#running_hybrid_pids = get_running_pid('hybrid')
+running_hybrid_pids = []
+def running_filter(path_match):
+    pid = primary_pid(path_match.string)
+    if pid in running_hybrid_pids:
+        return True
+    return False
+
+def format_folder(regex, sort_key, sub_formatter, folder, indent_level, info=[], filters=[], reverse=False):
+    matches = subdir_matches(regex, folder)
+    for f in filters:
+        matches = filter(f, matches)
+    matches = list(matches)
+    matches.sort(key=sort_key, reverse=reverse)
+    substrings = []
+    for m in matches:
+        substrings.append(('{}: '*(len(info)+1)).format(m.group(1), *(i(m.string) for i in info)))
+        substrings.append(sub_formatter(m.string, 1))
+
+    text = '\n'.join(substrings)
+    return textwrap.indent(text, '    '*indent_level)
+
+def format_dates(folder, indent_level, rev):
+    return format_folder(date_regex, date_key, format_plutos, folder, indent_level, info=[human_dir_size], reverse=rev)
+def format_date_sizes(folder, indent_level, rev):
+    return format_folder(date_regex, size_key, format_pluto_sizes, folder, indent_level, info=[human_dir_size], reverse=rev)
+def format_running_dates(folder, indent_level, rev):
+    return format_folder(date_regex, date_key, format_running_plutos, folder, indent_level, info=[human_dir_size], reverse=rev)
+
+def format_plutos(folder, indent_level):
+    return format_folder(pluto_regex, pluto_number_key, format_message, folder, indent_level, info=[primary_pid, human_dir_size])
+def format_pluto_sizes(folder, indent_level):
+    return format_folder(pluto_regex, size_key, format_message, folder, indent_level, info=[primary_pid, human_dir_size])
+def format_running_plutos(folder, indent_level):
+    return format_folder(pluto_regex, pluto_number_key, format_message, folder, indent_level, info=[primary_pid, human_dir_size], filters=[running_filter])
+
+def format_message(folder, indent_level, width=80):
+    try:
+        with open(os.path.join(folder,'message')) as f:
+            message = f.read()
+    except FileNotFoundError:
+        message = "No message found"
+
+    return textwrap.fill(message,
+            width=width,
+            initial_indent='    '*indent_level,
+            subsequent_indent='    '*indent_level)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--by-size', dest='bysize', action='store_true', help='If set, order messages by size of the folder')
+parser.add_argument('--running', dest='running', action='store_true', help='If set, only display messages of currently running simulations')
+parser.add_argument('--reversed', action='store_true', help='Reverse the date folder sorting.')
 args = parser.parse_args()
 
-def getallmsgdata():
-    cwd = os.getcwd()
-    if '/data' not in cwd:
-        raise RuntimeError('You need to start in the data folder or one of its subfolders')
-
-    msg_dirs = []
-    dir_sizes = []
-    for (dirpath,dirnames,filenames) in os.walk(cwd):
-        if 'message' in filenames:
-            msg_dirs.append(os.path.join(dirpath,'message'))
-            dir_sizes.append(dir_size(dirpath))
-
-    def getmsg(f):
-        fh = open(f)
-        ret = fh.read()
-        fh.close()
-        return ret
-
-    msgs = [getmsg(msg_dir) for msg_dir in msg_dirs]
-
-    return list(zip(msg_dirs, dir_sizes, msgs))
-
-def getdatematch(string):
-    """Return date string"""
-    return re.search('data/(.+)/pluto',string)
-def getdatestring(string):
-    match = getdatematch(string)
-    if match:
-        return match.group(1)
-    else:
-        return '9999-Mon-Jan-01'
-def getdate(string):
-    try:
-        return time.strptime(getdatestring(string), '%Y-%a-%b-%d')
-    except ValueError:
-        return time.strptime('9999-Mon-Jan-01', '%Y-%a-%b-%d')
-
-def getplutomatch(string):
-    return re.search('pluto-(\d+)',string)
-def getplutonumber(string):
-    match = getplutomatch(string)
-    return int(match.group(1))
-def getplutostring(string):
-    match = getplutomatch(string)
-    return match.group(0)
-
-def datekey(item):
-    date = getdate(item[0])
-    pluto = getplutonumber(item[0])
-    return (date,pluto)
-def sizekey(item):
-    return item[1]
-
 if __name__ == '__main__':
-    lst = getallmsgdata()
-    if args.bysize:
-        lst.sort(key=sizekey)
-    else:
-        lst.sort(key=datekey)
+    # read subdirectories and files in the root folder
+    root = os.getcwd()
 
-    for (f,size,msg) in lst:
-        print(getdatestring(f) + '/' + getplutostring(f) + ' : ' + human_size(size))
-        print(textwrap.fill(msg, width=80, initial_indent='    ', subsequent_indent='    '))
+    dates = subdir_matches(date_regex, root)
+    plutos = subdir_matches(pluto_regex, root)
+    ishybrid = contains_hybrid_sim(root)
+
+    if args.bysize:
+        if dates:
+            print(format_date_sizes(root, 0, args.reversed))
+        if plutos:
+            print(format_pluto_sizes(root, 0))
+        if ishybrid:
+            print(format_message(root, 0))
+    elif args.running:
+        if dates:
+            print(format_running_dates(root, 0, args.reversed))
+        if plutos:
+            print(format_running_plutos(root, 0))
+        if ishybrid:
+            print(format_message(root, 0))
+    else:
+        if dates:
+            print(format_dates(root, 0, args.reversed))
+        if plutos:
+            print(format_plutos(root, 0))
+        if ishybrid:
+            print(format_message(root, 0))
+

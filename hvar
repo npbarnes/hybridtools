@@ -1,130 +1,107 @@
 #!/usr/bin/env python
 import numpy as np
 from HybridReader2 import HybridReader2 as hr
-from HybridHelper import parser, parse_cmd_line, direct_plot, beta_plot
+from HybridReader2 import NoSuchVariable
+from HybridHelper import parser, parse_cmd_line, init_figures, direct_plot, bs_hi_plot, traj_plot, get_pluto_coords, streams, build_format_coord
 import matplotlib.pyplot as plt
 from matplotlib import colors, rcParams
+from hvarplotter import plot_variable
 
-def var_sanity_check(isScalar, coord):
-    if h.isScalar and args.variable.coordinate is not None:
-        raise ValueError("Don't specify a coordinate for scalars.")
-    if not h.isScalar and args.variable.coordinate is None:
-        raise ValueError("Must specify a coordinate for vectors.")
-
-parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1,
-        help='The specific step number to read or -1 for the last step')
+parser.add_argument('--save2')
+parser.add_argument('--streamlines', action='store_true')
+parser.add_argument('--beta_limits', type=int, nargs=2)
+parser.add_argument('--plutostyle', action='store_true')
 args = parse_cmd_line()
 
-fig, (ax1, ax2) = plt.subplots(ncols=2, sharex=True, sharey=True,
-        figsize=(2*rcParams['figure.figsize'][0], 0.8*rcParams['figure.figsize'][1]))
-fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, wspace=0.1)
-ax1.set_aspect('equal', adjustable='box-forced')
-ax2.set_aspect('equal', adjustable='box-forced')
+fig1, fig2, ax1, ax2 = init_figures(args)
 
-if args.variable.name == 'beta':
-    hn = hr(args.prefix, 'np')
-    para = hn.para
-    n = hn.get_timestep(args.stepnum)[-1]
-    T = hr(args.prefix, 'temp_p').get_timestep(args.stepnum)[-1]
-    B = hr(args.prefix, 'bt').get_timestep(args.stepnum)[-1]
+## This function is really the main part of the program
+## It plots the appropriate variable, typically as a pcolormesh
+###############################################################
+plot_variable(fig1,fig2, ax1,ax2, args)
 
-    # Convert units
-    n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
-    T = 1.60218e-19 * T                  # eV -> J
-    B = 1.6726219e-27/1.60217662e-19 * B # proton gyrofrequency -> T
 
-    # Compute B \cdot B
-    B2 = np.sum(B**2, axis=-1)
+## There are a number of optional addons to the plot
+####################################################
+if args.streamlines:
+    bt = hr(args.prefix,'bt')
+    #b1.repair_and_reset()
+    bdata = bt.get_last_timestep()[-1]
+    bdata[1:,:,:,0] = (bdata[1:,:,:,0] + bdata[:-1,:,:,0])/2
+    bdata[:,1:,:,1] = (bdata[:,1:,:,1] + bdata[:,:-1,:,1])/2
+    bdata[:,:,1:,2] = (bdata[:,:,1:,2] + bdata[:,:,:-1,2])/2
 
-    # Compute plasma beta
-    data = n*T/(B2/(2*1.257e-6))
+    infodict = get_pluto_coords(bt.para)
+    qx = -infodict['px']
+    qy = -infodict['py']
+    cz = infodict['cz']
 
-    beta_plot(fig, ax1, data, para, 'xy')
-    beta_plot(fig, ax2, data, para, 'xz')
+    def line(y, n=15, double=False, start=qx.min(), end=qx.max()):
+        xs = np.linspace(start, end, n)
+        if double:
+            seed_points = np.empty((2*n,2))
+        else:
+            seed_points = np.empty((n,2))
 
-elif args.variable.name == 'bmag':
-    hb = hr(args.prefix, 'bt')
-    para = hb.para
-    B = hb.get_timestep(args.stepnum)[-1]
-    B = 1.6726219e-27/1.60217662e-19 * B # proton gyrofrequency -> T
-    Bmag = np.sqrt(np.sum(B**2, axis=-1))
-    data = Bmag
+        seed_points[:n,0] = xs
+        seed_points[:n,1] = y
+        if double:
+            seed_points[n:,0] = xs
+            seed_points[n:,1] = -y
+        return seed_points
 
-    direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
-    direct_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
+    seed_points = line(0, n=15, double=False)
+    streams(ax1, qx, qy, bdata[:,:,cz,0].T, bdata[:,:,cz,1].T, color='black', linewidth=1, start_points=seed_points, density=100, numarrows=2)
+    #ax1.plot(seed_points.T[0], seed_points.T[1], 'bo')
 
-elif args.variable.name == 'fmach':
-    hn = hr(args.prefix, 'np')
-    para = hn.para
-    n = hn.get_timestep(args.stepnum)[-1]
-    T = hr(args.prefix, 'temp_p').get_timestep(args.stepnum)[-1]
-    B = hr(args.prefix, 'bt').get_timestep(args.stepnum)[-1]
-    u = hr(args.prefix, 'up').get_timestep(args.stepnum)[-1]
-    ux = -u[:,:,:,0]
+    seed_points = line(25, n=7, double=False, start=1.3)
+    streams(ax1, qx, qy, bdata[:,:,cz,0].T, bdata[:,:,cz,1].T, color='black', linewidth=1, start_points=seed_points, density=100, numarrows=2)
+    #ax1.plot(seed_points.T[0], seed_points.T[1], 'bo')
 
-    n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
-    T = 1.60218e-19 * T                  # eV -> J
-    B = 1.6726219e-27/1.60217662e-19 * B # proton gyrofrequency -> T
+    seed_points = line(-25, n=6, double=False, start=8)
+    streams(ax1, qx, qy, bdata[:,:,cz,0].T, bdata[:,:,cz,1].T, color='black', linewidth=1, start_points=seed_points, density=100, numarrows=2)
+    #ax1.plot(seed_points.T[0], seed_points.T[1], 'bo')
 
-    B2 = np.sum(B**2, axis=-1)
+if args.traj:
+    traj_plot(fig1, ax1, 'xy', mccomas=args.mccomas)
+    traj_plot(fig2, ax2, 'xz', mccomas=args.mccomas)
 
-    c   = 3e8       # m/s
-    mu0 = 1.257e-6  # H/m
-    mp  = 1.602e-19 # kg
-    gamma = 3
 
-    # Upstream alfven velocity
-    us_va = np.sqrt(B2[-1,0,0]/(mu0*mp*n[-1,0,0]))
 
-    # Upstream ion acousitic speed
-    us_vs = np.sqrt(gamma*T[-1,0,0]/mp)
-
-    # Upstream fastmode velocity
-    us_vf = c*np.sqrt((us_vs**2 + us_va**2)/(c**2 + us_va**2))
-
-    data = ux/us_vf
-
-    direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
-    direct_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
-
-elif args.variable.name == 'ratio':
-    h = hr(args.prefix, 'np')
-    ch4 = hr(args.prefix, 'np_CH4')
-
-    h_data = h.get_timestep(args.stepnum)[-1]
-    ch4_data = ch4.get_timestep(args.stepnum)[-1]
-
-    para = h.para
-
-    ratio_plot(fig, ax1, h_data, ch4_data, para, 'xy', norm=args.norm)
-    ratio_plot(fig, ax2, h_data, ch4_data, para, 'xz', norm=args.norm)
-
+## Set axis limits, labels, titles
+##################################
+if args.separate:
+    if args.ylim is not None:
+        ax1.set_ylim(*args.ylim)
+        ax2.set_ylim(*args.ylim)
+    if args.xlim is not None:
+        ax1.set_xlim(*args.xlim)
+        ax2.set_xlim(*args.xlim)
 else:
-    h = hr(args.prefix,args.variable.name)
-    var_sanity_check(h.isScalar, args.variable.coordinate)
-
-    data = h.get_timestep(args.stepnum)[-1]
-    if not h.isScalar:
-        data = data[:,:,:,args.variable.coordinate]
-    para = h.para
-
-    direct_plot(fig, ax1, data, para, 'xy', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
-    direct_plot(fig, ax2, data, para, 'xz', cmap=args.colormap, norm=args.norm, vmin=args.vmin, vmax=args.vmax)
-
-
-
-# set reasonable axis limits. (note than since axes are shared and aspect is equal this changes all limits.)
-ax1.autoscale('tight')
-if args.ylim is not None:
-    ax1.set_ylim(*args.ylim)
+    # Since axes are shared and aspect is equal this changes all limits.
+    ax1.autoscale('tight')
+    if args.ylim is not None:
+        ax1.set_ylim(*args.ylim)
+    if args.xlim is not None:
+        ax1.set_xlim(*args.xlim)
 
 # Making axes shared automatically hides the yaxis tick labels. This makes them visible again.
 for tk in ax2.get_yticklabels():
     tk.set_visible(True)
 
-fig.suptitle(args.variable, fontsize=14)
+if args.separate:
+    ax1.set_title(args.title,  fontsize=args.titlesize)
+    ax2.set_title(args.title2, fontsize=args.titlesize)
+else:
+    fig1.suptitle(args.title, fontsize=args.titlesize)
 
+
+## Save or show
+###############
 if args.save:
-    fig.savefig(args.save, bbox_inches='tight')
+    fig1.savefig(args.save, bbox_inches='tight')
+    if args.separate:
+        fig2.savefig(args.save2, bbox_inches='tight')
+
 else:
     plt.show()
