@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+import os
+import re
+import time
+import textwrap
+
+date_regex = re.compile(r'(\d{4}-(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2})$')
+pluto_regex = re.compile(r'(pluto-(\d+))$')
+
+def getdate(string):
+    try:
+        return time.strptime(getdatestring(string), '%Y-%a-%b-%d')
+    except ValueError:
+        return time.strptime('9999-Mon-Jan-01', '%Y-%a-%b-%d')
+
+def datekey(dirname):
+    date_match = date_regex.fullmatch(dirname)
+    if date_match:
+        return time.strptime(date_match.group(1), '%Y-%a-%b-%d')
+    else: # if the directory isn't a date it should sort after all date folders
+        return time.strptime('9999-Mon-Jan-01', '%Y-%a-%b-%d')
+
+def plutokey(dirname):
+    pluto_match = pluto_regex.fullmatch(dirname)
+    if pluto_match:
+        return pluto_match.group(2)
+    else:
+        return float('inf')
+
+def list_files(startpath):
+    for root, dirs, files in os.walk(startpath):
+        # Only search folders that have one of the expected formats
+        idxs = []
+        for i in range(len(dirs)):
+            date_match = date_regex.fullmatch(dirs[i])
+            pluto_match = pluto_regex.fullmatch(dirs[i])
+            if date_match is None and pluto_match is None:
+                idxs.append(i)
+        for i in reversed(idxs):
+            del dirs[i]
+
+        # Of the remaining folders to search, do so in sorted order
+        dirs.sort(key=lambda x: (datekey(x), plutokey(x)))
+
+        # Print the current folder indented by it's depth relative to the startpath
+        level = root.replace(startpath, '').count(os.sep)
+        indent = ' ' * 4 * level
+        print('{}{}/'.format(indent, os.path.basename(root)))
+
+        # Print the message if there is one present
+        subindent = ' ' * 4 * (level + 1)
+        for fname in files:
+            if fname == 'message':
+                with open(os.path.join(root,fname)) as f:
+                    msg = f.read()
+                print(textwrap.fill(msg, width=80, initial_indent=subindent, subsequent_indent=subindent))
+
+def has_restarts(pluto_folder):
+    data_folder = os.path.join(pluto_folder,"data")
+    if os.path.isdir(data_folder):
+        files = os.listdir(data_folder)
+        for f in files:
+            if f.startswith("restart"):
+                return True
+    return False
+
+def list_files2(startpath):
+    for root, dirs, files in os.walk(startpath):
+        # Only search folders that have one of the expected formats
+        idxs = []
+        for i in range(len(dirs)):
+            date_match = date_regex.fullmatch(dirs[i])
+            pluto_match = pluto_regex.fullmatch(dirs[i])
+            if date_match is None and pluto_match is None:
+                idxs.append(i)
+        for i in reversed(idxs):
+            del dirs[i]
+
+        # Of the remaining folders to search, do so in sorted order
+        dirs.sort(key=lambda x: (datekey(x), plutokey(x)))
+
+        # Print the current folder indented by it's depth relative to the startpath
+        level = root.replace(startpath, '').count(os.sep)
+        # also print a star if we're in a pluto folder with restarts
+        if pluto_regex.fullmatch(os.path.basename(root)) is not None and has_restarts(root):
+            indent = ' ' * (4 * level - 1)
+            print('*{}{}/'.format(indent, os.path.basename(root)))
+        else:
+            indent = ' ' * (4 * level)
+            print('{}{}/'.format(indent, os.path.basename(root)))
+
+        # Print the message if there is one present
+        subindent = ' ' * 4 * (level + 1)
+        for fname in files:
+            if fname == 'message':
+                with open(os.path.join(root,fname)) as f:
+                    msg = f.read()
+                print(textwrap.fill(msg, width=80, initial_indent=subindent, subsequent_indent=subindent))
+
+list_files2(os.getcwd())
