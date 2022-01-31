@@ -451,8 +451,7 @@ def plot_setup(ax, data, params, direction, depth, time_coords=False, fontsize=N
             ax.set_ylabel('$Z$', fontsize=labelsize)
 
     elif direction == 'yz':
-        default = np.abs(infodict['px'] - (-15.0)).argmin()
-        depth = depth if depth is not None else default
+        depth = depth if depth is not None else infodict['cx']
         print('X = {}'.format(infodict['px'][depth]))
         dslice = data[depth,:,:]
         x,y = infodict['py'], infodict['pz']
