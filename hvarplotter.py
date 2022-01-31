@@ -13,36 +13,15 @@ def var_sanity_check(isScalar, coord):
     if not isScalar and coord is None:
         raise ValueError("Must specify a coordinate for vectors.")
 
-def plot_variable(fig1,fig2, ax1,ax2, args):
-    ## Special cases first, the general case is direct_plot() at the bottom
+def plot_variable(figs, axs, args):
+    # Special cases have special considerations when loading data,
+    # e.g. unit conversions, or a product of two variables etc.
+    if args.variable.name == 'pressure':
+        try:
+            hn = hr(args.prefix, 'np_tot')
+        except NoSuchVariable:
+            hn = hr(args.prefix, 'np')
 
-    if args.variable.name == 'bs':
-        hup = hr(args.prefix,'up')
-        hn_tot = hr(args.prefix,'np')
-        hn_h = hr(args.prefix,'np_He')
-        hn_ch4 = hr(args.prefix,'np_CH4')
-
-        ux = hup.get_timestep(args.stepnum)[-1]
-        n_tot = hn_tot.get_timestep(args.stepnum)[-1]
-        n_h = hn_h.get_timestep(args.stepnum)[-1]
-        n_ch4 = hn_ch4.get_timestep(args.stepnum)[-1]
-
-        ux = ux[:,:,:,0]
-        para = hup.para
-
-        bs_hi_plot(fig1, ax1, n_tot, n_h, n_ch4,ux, 401, 2.7e12, para, 'xy', 
-                mccomas=args.mccomas, 
-                titlesize=args.titlesize, 
-                labelsize=args.labelsize, 
-                ticklabelsize=args.ticklabelsize)
-        bs_hi_plot(fig2, ax2, n_tot, n_h, n_ch4,ux, 401, 2.7e12, para, 'xz', 
-                mccomas=args.mccomas, 
-                titlesize=args.titlesize, 
-                labelsize=args.labelsize, 
-                ticklabelsize=args.ticklabelsize)
-
-    elif args.variable.name == 'beta':
-        hn = hr(args.prefix, 'np')
         para = hn.para
         n = hn.get_timestep(args.stepnum)[-1]
         try:
@@ -50,150 +29,96 @@ def plot_variable(fig1,fig2, ax1,ax2, args):
         except NoSuchVariable:
             T = hr(args.prefix, 'temp_p').get_timestep(args.stepnum)[-1]
 
-        B = hr(args.prefix, 'bt').get_timestep(args.stepnum)[-1]
-
         # Convert units
+        n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
+        T = 1.60218e-19 * T                  # eV -> J
+
+        data = n*T
+
+    elif args.variable.name == 'bmag':
+        hb = hr(args.prefix, 'bt')
+        para = hb.para
+        B = hb.get_timestep(args.stepnum)[-1]
+        B = para['ion_amu']*1.6726219e-27/1.60217662e-19 * B # ion gyrofrequency -> T
+        Bmag = np.sqrt(np.sum(B**2, axis=-1))
+        data = Bmag
+
+    elif args.variable.name == 'Emag':
+        hE = hr(args.prefix, 'E')
+        para = hE.para
+        E = hE.get_timestep(args.stepnum)[-1]
+        E = para['ion_amu']*1.6726219e-27/1.60217662e-19 * E # ion acceleration -> V/m
+        Emag = np.sqrt(np.sum(E**2, axis=-1))
+        data = Emag
+
+    elif args.variable.name == 'ajmag':
+        haj = hr(args.prefix, 'aj')
+        para = haj.para
+        aj = haj.get_timestep(args.stepnum)[-1]
+        ajmag = np.sqrt(np.sum(aj**2, axis=-1))
+        data = ajmag
+
+    elif args.variable.name == 'ajpar':
+        haj = hr(args.prefix, 'aj')
+        hbt = hr(args.prefix, 'bt')
+        para = haj.para
+        aj = haj.get_timestep(args.stepnum)[-1]
+        bt = hbt.get_timestep(args.stepnum)[-1]
+        btmag = np.sqrt(np.sum(bt**2, axis=-1))
+
+        data = np.sum(aj*bt, axis=-1)/btmag
+
+    elif args.variable.name == 'fmach':
+        hn = hr(args.prefix, 'np')
+        para = hn.para
+        n = hn.get_timestep(args.stepnum)[-1]
+        T = hr(args.prefix, 'temp_tot').get_timestep(args.stepnum)[-1]
+        B = hr(args.prefix, 'bt').get_timestep(args.stepnum)[-1]
+        u = hr(args.prefix, 'up').get_timestep(args.stepnum)[-1]
+        ux = -u[:,:,:,0]
+
         n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
         T = 1.60218e-19 * T                  # eV -> J
         B = para['ion_amu']*1.6726219e-27/1.60217662e-19 * B # ion gyrofrequency -> T
 
-        # Compute B \cdot B
         B2 = np.sum(B**2, axis=-1)
 
-        # Compute plasma beta
-        data = n*T/(B2/(2*1.257e-6))
+        c   = 3e8       # m/s
+        mu0 = 1.257e-6  # H/m
+        mp  = 1.602e-19 # kg
+        gamma = 3
 
-        m1, X1, Y1, C1 = beta_plot2(ax1, data, para, 'xy', mccomas=args.mccomas)
-        m2, X2, Y2, C2 = beta_plot2(ax2, data, para, 'xz', mccomas=args.mccomas)
-        fig1.colorbar(m1, ax=ax1)
-        fig2.colorbar(m2, ax=ax2)
+        # Upstream alfven velocity
+        us_va = np.sqrt(B2[-1,0,0]/(mu0*mp*n[-1,0,0]))
 
-        args.variable = 'Plasma Beta'
+        # Upstream ion acousitic speed
+        us_vs = np.sqrt(gamma*T[-1,0,0]/mp)
 
-    elif args.variable.name == 'ratio':
-        h = hr(args.prefix, 'np')
-        ch4 = hr(args.prefix, 'np_CH4')
+        # Upstream fastmode velocity
+        us_vf = c*np.sqrt((us_vs**2 + us_va**2)/(c**2 + us_va**2))
 
-        h_data = h.get_timestep(args.stepnum)[-1]
-        ch4_data = ch4.get_timestep(args.stepnum)[-1]
+        data = ux/us_vf
 
+    elif args.variable.name == 'upmag':
+        h = hr(args.prefix,'up')
+
+        data = h.get_timestep(args.stepnum)[-1]
+        data = np.linalg.norm(data, axis=-1)
         para = h.para
 
-        ratio_plot(fig1, ax1, h_data, ch4_data, para, 'xy', 
-                norm=args.norm, 
-                mccomas=args.mccomas, 
-                titlesize=args.titlesize, 
-                labelsize=args.labelsize, 
-                ticklabelsize=args.ticklabelsize)
-        ratio_plot(fig2, ax2, h_data, ch4_data, para, 'xz', 
-                norm=args.norm, 
-                mccomas=args.mccomas, 
-                titlesize=args.titlesize, 
-                labelsize=args.labelsize, 
-                ticklabelsize=args.ticklabelsize)
-    else: # direct_plot cases
-        if args.variable.name == 'pressure':
-            try:
-                hn = hr(args.prefix, 'np_tot')
-            except NoSuchVariable:
-                hn = hr(args.prefix, 'np')
-    
-            para = hn.para
-            n = hn.get_timestep(args.stepnum)[-1]
-            try:
-                T = hr(args.prefix, 'temp_tot').get_timestep(args.stepnum)[-1]
-            except NoSuchVariable:
-                T = hr(args.prefix, 'temp_p').get_timestep(args.stepnum)[-1]
-    
-            # Convert units
-            n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
-            T = 1.60218e-19 * T                  # eV -> J
-    
-            data = n*T
-    
-        elif args.variable.name == 'bmag':
-            hb = hr(args.prefix, 'bt')
-            para = hb.para
-            B = hb.get_timestep(args.stepnum)[-1]
-            B = para['ion_amu']*1.6726219e-27/1.60217662e-19 * B # ion gyrofrequency -> T
-            Bmag = np.sqrt(np.sum(B**2, axis=-1))
-            data = Bmag
-    
-        elif args.variable.name == 'Emag':
-            hE = hr(args.prefix, 'E')
-            para = hE.para
-            E = hE.get_timestep(args.stepnum)[-1]
-            E = para['ion_amu']*1.6726219e-27/1.60217662e-19 * E # ion acceleration -> V/m
-            Emag = np.sqrt(np.sum(E**2, axis=-1))
-            data = Emag
-    
-        elif args.variable.name == 'ajmag':
-            haj = hr(args.prefix, 'aj')
-            para = haj.para
-            aj = haj.get_timestep(args.stepnum)[-1]
-            ajmag = np.sqrt(np.sum(aj**2, axis=-1))
-            data = ajmag
-    
-        elif args.variable.name == 'ajpar':
-            haj = hr(args.prefix, 'aj')
-            hbt = hr(args.prefix, 'bt')
-            para = haj.para
-            aj = haj.get_timestep(args.stepnum)[-1]
-            bt = hbt.get_timestep(args.stepnum)[-1]
-            btmag = np.sqrt(np.sum(bt**2, axis=-1))
-    
-            data = np.sum(aj*bt, axis=-1)/btmag
-    
-        elif args.variable.name == 'fmach':
-            hn = hr(args.prefix, 'np')
-            para = hn.para
-            n = hn.get_timestep(args.stepnum)[-1]
-            T = hr(args.prefix, 'temp_tot').get_timestep(args.stepnum)[-1]
-            B = hr(args.prefix, 'bt').get_timestep(args.stepnum)[-1]
-            u = hr(args.prefix, 'up').get_timestep(args.stepnum)[-1]
-            ux = -u[:,:,:,0]
-    
-            n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
-            T = 1.60218e-19 * T                  # eV -> J
-            B = para['ion_amu']*1.6726219e-27/1.60217662e-19 * B # ion gyrofrequency -> T
-    
-            B2 = np.sum(B**2, axis=-1)
-    
-            c   = 3e8       # m/s
-            mu0 = 1.257e-6  # H/m
-            mp  = 1.602e-19 # kg
-            gamma = 3
-    
-            # Upstream alfven velocity
-            us_va = np.sqrt(B2[-1,0,0]/(mu0*mp*n[-1,0,0]))
-    
-            # Upstream ion acousitic speed
-            us_vs = np.sqrt(gamma*T[-1,0,0]/mp)
-    
-            # Upstream fastmode velocity
-            us_vf = c*np.sqrt((us_vs**2 + us_va**2)/(c**2 + us_va**2))
-    
-            data = ux/us_vf
-    
-        elif args.variable.name == 'upmag':
-            h = hr(args.prefix,'up')
-    
-            data = h.get_timestep(args.stepnum)[-1]
-            data = np.linalg.norm(data, axis=-1)
-            para = h.para
-    
-        else: # Generic case. Plots the variable directly
-            h = hr(args.prefix,args.variable.name)
-            var_sanity_check(h.isScalar, args.variable.coordinate)
-    
-            data = h.get_timestep(args.stepnum)[-1]
-            if not h.isScalar:
-                data = data[:,:,:,args.variable.coordinate]
-            if str(args.variable).startswith('bt'):
-                data = h.para['ion_amu']*1.6726219e-27/1.60217662e-19 * data # ion gyrofrequency -> T
-            para = h.para
-    
-        m1, X1, Y1, C1 = direct_plot(fig1, ax1, data, para, 'xy', 
+    else: # Generic case. Plots the variable directly
+        h = hr(args.prefix,args.variable.name)
+        var_sanity_check(h.isScalar, args.variable.coordinate)
+
+        data = h.get_timestep(args.stepnum)[-1]
+        if not h.isScalar:
+            data = data[:,:,:,args.variable.coordinate]
+        if str(args.variable).startswith('bt'):
+            data = h.para['ion_amu']*1.6726219e-27/1.60217662e-19 * data # ion gyrofrequency -> T
+        para = h.para
+
+    for fig, ax, d in zip(figs, axs, args.directions):
+        m, X, Y, C = direct_plot(fig, ax, data, para, d, 
                 cmap=args.colormap,
                 norm=args.norm, 
                 vmin=args.vmin, 
@@ -203,18 +128,7 @@ def plot_variable(fig1,fig2, ax1,ax2, args):
                 labelsize=args.labelsize, 
                 ticklabelsize=args.ticklabelsize, 
                 cbtitle=args.units)
-        ax1.format_coord = build_pcolormesh_format_coord(m1)
-        m2, X2, Y2, C2 = direct_plot(fig2, ax2, data, para, 'xz', 
-                cmap=args.colormap, 
-                norm=args.norm, 
-                vmin=args.vmin, 
-                vmax=args.vmax, 
-                mccomas=args.mccomas, 
-                titlesize=args.titlesize, 
-                labelsize=args.labelsize, 
-                ticklabelsize=args.ticklabelsize, 
-                cbtitle=args.units)
-        ax2.format_coord = build_pcolormesh_format_coord(m2)
+        ax.format_coord = build_pcolormesh_format_coord(m)
     
 def get_1d_scalar(h):
     steps, times, data = h.get_all_timesteps()

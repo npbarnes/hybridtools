@@ -13,83 +13,27 @@ parser.add_argument('--beta_limits', type=int, nargs=2)
 parser.add_argument('--plutostyle', action='store_true')
 args = parse_cmd_line()
 
-(fig1, fig2), (ax1, ax2) = init_figures(args)
+figs, axs = init_figures(args)
 
-## This function is really the main part of the program
-## It plots the appropriate variable, typically as a pcolormesh
-###############################################################
-plot_variable(fig1,fig2, ax1,ax2, args)
-
-
-## There are a number of optional addons to the plot
-####################################################
-if args.streamlines:
-    bt = hr(args.prefix,'bt')
-    #b1.repair_and_reset()
-    bdata = bt.get_last_timestep()[-1]
-    bdata[1:,:,:,0] = (bdata[1:,:,:,0] + bdata[:-1,:,:,0])/2
-    bdata[:,1:,:,1] = (bdata[:,1:,:,1] + bdata[:,:-1,:,1])/2
-    bdata[:,:,1:,2] = (bdata[:,:,1:,2] + bdata[:,:,:-1,2])/2
-
-    infodict = get_pluto_coords(bt.para)
-    qx = -infodict['px']
-    qy = -infodict['py']
-    cz = infodict['cz']
-
-    def line(y, n=15, double=False, start=qx.min(), end=qx.max()):
-        xs = np.linspace(start, end, n)
-        if double:
-            seed_points = np.empty((2*n,2))
-        else:
-            seed_points = np.empty((n,2))
-
-        seed_points[:n,0] = xs
-        seed_points[:n,1] = y
-        if double:
-            seed_points[n:,0] = xs
-            seed_points[n:,1] = -y
-        return seed_points
-
-    seed_points = line(0, n=15, double=False)
-    streams(ax1, qx, qy, bdata[:,:,cz,0].T, bdata[:,:,cz,1].T, color='black', linewidth=1, start_points=seed_points, density=100, numarrows=2)
-    #ax1.plot(seed_points.T[0], seed_points.T[1], 'bo')
-
-    seed_points = line(25, n=7, double=False, start=1.3)
-    streams(ax1, qx, qy, bdata[:,:,cz,0].T, bdata[:,:,cz,1].T, color='black', linewidth=1, start_points=seed_points, density=100, numarrows=2)
-    #ax1.plot(seed_points.T[0], seed_points.T[1], 'bo')
-
-    seed_points = line(-25, n=6, double=False, start=8)
-    streams(ax1, qx, qy, bdata[:,:,cz,0].T, bdata[:,:,cz,1].T, color='black', linewidth=1, start_points=seed_points, density=100, numarrows=2)
-    #ax1.plot(seed_points.T[0], seed_points.T[1], 'bo')
-
-if args.traj:
-    traj_plot(fig1, ax1, 'xy', mccomas=args.mccomas)
-    traj_plot(fig2, ax2, 'xz', mccomas=args.mccomas)
-
-
+plot_variable(figs, axs, args)
 
 ## Set axis limits, labels, titles
 ##################################
 if args.ylim is not None:
-    ax1.set_ylim(*args.ylim)
-    ax2.set_ylim(*args.ylim)
+    for ax in axs:
+        ax.set_ylim(*args.ylim)
 if args.xlim is not None:
-    ax1.set_xlim(*args.xlim)
-    ax2.set_xlim(*args.xlim)
+    for ax in axs:
+        ax.set_ylim(*args.ylim)
 
-# Making axes shared automatically hides the yaxis tick labels. This makes them visible again.
-for tk in ax2.get_yticklabels():
-    tk.set_visible(True)
-
-ax1.set_title(args.title,  fontsize=args.titlesize)
-ax2.set_title(args.title2, fontsize=args.titlesize)
+for ax in axs:
+    ax.set_title(args.title,  fontsize=args.titlesize)
 
 
 ## Save or show
 ###############
 if args.save:
-    fig1.savefig(args.save, bbox_inches='tight')
-    fig2.savefig(args.save2, bbox_inches='tight')
-
+    for fig,d in zip(figs, args.directions):
+        fig.savefig(args.save+"_"+d, bbox_inches='tight')
 else:
     plt.show()

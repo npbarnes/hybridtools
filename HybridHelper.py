@@ -169,7 +169,6 @@ parser.add_argument('--xy', action='store_true', default=None)
 parser.add_argument('--xz', action='store_true', default=None)
 parser.add_argument('--yz', action='store_true', default=None)
 parser.add_argument('--title', default=None)
-parser.add_argument('--title2', default=None)
 parser.add_argument('--units', default='')
 parser.add_argument('--style', help='Matplotlib style to use for the plot')
 parser.add_argument('-s','--step', dest='stepnum', type=int, default=-1,
@@ -240,9 +239,6 @@ def parse_cmd_line():
     if args.title is None:
         args.title = str(args.variable)
 
-    if args.title2 is None:
-        args.title2 = args.title
-
     args.directions = []
     if args.xy:
         args.directions.append('xy')
@@ -255,8 +251,6 @@ def parse_cmd_line():
         args.xy = True
         args.xz = True
         args.directions = ['xy','xz']
-    elif len(args.directions) == 3:
-        print("Warning: hvar will only plot the first two directions")
 
     return args
 
