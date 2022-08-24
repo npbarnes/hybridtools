@@ -5,7 +5,7 @@ import time
 import textwrap
 
 date_regex = re.compile(r'(\d{4}-(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2})$')
-pluto_regex = re.compile(r'(pluto-(\d+))$')
+numbered_regex = re.compile(r'(.*-(\d+))$')
 
 def getdate(string):
     try:
@@ -21,7 +21,7 @@ def datekey(dirname):
         return time.strptime('9999-Mon-Jan-01', '%Y-%a-%b-%d')
 
 def plutokey(dirname):
-    pluto_match = pluto_regex.fullmatch(dirname)
+    pluto_match = numbered_regex.fullmatch(dirname)
     if pluto_match:
         return pluto_match.group(2)
     else:
@@ -33,7 +33,7 @@ def list_files(startpath):
         idxs = []
         for i in range(len(dirs)):
             date_match = date_regex.fullmatch(dirs[i])
-            pluto_match = pluto_regex.fullmatch(dirs[i])
+            pluto_match = numbered_regex.fullmatch(dirs[i])
             if date_match is None and pluto_match is None:
                 idxs.append(i)
         for i in reversed(idxs):
@@ -70,7 +70,7 @@ def list_files2(startpath):
         idxs = []
         for i in range(len(dirs)):
             date_match = date_regex.fullmatch(dirs[i])
-            pluto_match = pluto_regex.fullmatch(dirs[i])
+            pluto_match = numbered_regex.fullmatch(dirs[i])
             if date_match is None and pluto_match is None:
                 idxs.append(i)
         for i in reversed(idxs):
@@ -82,7 +82,7 @@ def list_files2(startpath):
         # Print the current folder indented by it's depth relative to the startpath
         level = root.replace(startpath, '').count(os.sep)
         # also print a star if we're in a pluto folder with restarts
-        if pluto_regex.fullmatch(os.path.basename(root)) is not None and has_restarts(root):
+        if numbered_regex.fullmatch(os.path.basename(root)) is not None and has_restarts(root):
             indent = ' ' * (4 * level - 1)
             print('*{}{}/'.format(indent, os.path.basename(root)))
         else:
