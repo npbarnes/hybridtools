@@ -23,7 +23,7 @@ def datekey(dirname):
 def plutokey(dirname):
     pluto_match = numbered_regex.fullmatch(dirname)
     if pluto_match:
-        return pluto_match.group(2)
+        return int(pluto_match.group(2))
     else:
         return float('inf')
 
