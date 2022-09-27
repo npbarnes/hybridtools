@@ -335,29 +335,14 @@ class MyLogNorm(Normalize):
             self.vmax = A.max()
 
 def get_coords(para):
-    # Get grid spacing
-    qx = para['qx']
-    qy = para['qy']
-    qzrange = para['qzrange']
-
     # Find the center index of the grid
     cx = para['nx']//2
     cy = para['ny']//2
     cz = para['zrange']//2
 
-    # the offset of pluto from the center isn't always availible
-    try:
-        po = para['pluto_offset']
-    except KeyError:
-        print("Couldn't get pluto_offset. It has been assumed to be 0, but it probably isn't.")
-        po = 0
+    qx, qy, qzrange = para['grid_points']
 
-    # Shift grid so that Pluto lies at (0,0,0)
-    qx = (qx - qx[len(qx)//2 + po])
-    qy = (qy - qy[len(qy)//2])
-    qzrange = (qzrange - qzrange[len(qzrange)//2])
-
-    infodict = {'px':qx,'py':qy,'pz':qzrange,'cx':cx,'cy':cy,'cz':cz, 'po':po}
+    infodict = {'px':qx,'py':qy,'pz':qzrange,'cx':cx,'cy':cy,'cz':cz}
 
     return infodict
 
