@@ -11,10 +11,10 @@ parser.add_argument('--save2')
 parser.add_argument('--streamlines', action='store_true')
 parser.add_argument('--beta_limits', type=int, nargs=2)
 parser.add_argument('--plutostyle', action='store_true')
+parser.add_argument('-n', default=None, type=int)
 args = parse_cmd_line()
 
 figs, axs = init_figures(args)
-
 plot_variable(figs, axs, args)
 
 ## Set axis limits, labels, titles
