@@ -18,16 +18,16 @@ def plot_variable(figs, axs, args):
     # e.g. unit conversions, or a product of two variables etc.
     if args.variable.name == 'pressure':
         try:
-            hn = hr(args.prefix, 'np_tot', proc_n=args.n)
+            hn = hr(args.prefix, 'np_tot', force_procs=args.n)
         except NoSuchVariable:
-            hn = hr(args.prefix, 'np', proc_n=args.n)
+            hn = hr(args.prefix, 'np', force_procs=args.n)
 
         para = hn.para
         n = hn.get_timestep(args.stepnum)[-1]
         try:
-            T = hr(args.prefix, 'temp_tot', proc_n=args.n).get_timestep(args.stepnum)[-1]
+            T = hr(args.prefix, 'temp_tot', force_procs=args.n).get_timestep(args.stepnum)[-1]
         except NoSuchVariable:
-            T = hr(args.prefix, 'temp_p', proc_n=args.n).get_timestep(args.stepnum)[-1]
+            T = hr(args.prefix, 'temp_p', force_procs=args.n).get_timestep(args.stepnum)[-1]
 
         # Convert units
         n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
@@ -36,7 +36,7 @@ def plot_variable(figs, axs, args):
         data = n*T
 
     elif args.variable.name == 'bmag':
-        hb = hr(args.prefix, 'bt', proc_n=args.n)
+        hb = hr(args.prefix, 'bt', force_procs=args.n)
         para = hb.para
         B = hb.get_timestep(args.stepnum)[-1]
         B = para['ion_amu']*1.6726219e-27/1.60217662e-19 * B # ion gyrofrequency -> T
@@ -44,7 +44,7 @@ def plot_variable(figs, axs, args):
         data = Bmag
 
     elif args.variable.name == 'Emag':
-        hE = hr(args.prefix, 'E', proc_n=args.n)
+        hE = hr(args.prefix, 'E', force_procs=args.n)
         para = hE.para
         E = hE.get_timestep(args.stepnum)[-1]
         E = para['ion_amu']*1.6726219e-27/1.60217662e-19 * E # ion acceleration -> V/m
@@ -52,15 +52,15 @@ def plot_variable(figs, axs, args):
         data = Emag
 
     elif args.variable.name == 'ajmag':
-        haj = hr(args.prefix, 'aj', proc_n=args.n)
+        haj = hr(args.prefix, 'aj', force_procs=args.n)
         para = haj.para
         aj = haj.get_timestep(args.stepnum)[-1]
         ajmag = np.sqrt(np.sum(aj**2, axis=-1))
         data = ajmag
 
     elif args.variable.name == 'ajpar':
-        haj = hr(args.prefix, 'aj', proc_n=args.n)
-        hbt = hr(args.prefix, 'bt', proc_n=args.n)
+        haj = hr(args.prefix, 'aj', force_procs=args.n)
+        hbt = hr(args.prefix, 'bt', force_procs=args.n)
         para = haj.para
         aj = haj.get_timestep(args.stepnum)[-1]
         bt = hbt.get_timestep(args.stepnum)[-1]
@@ -69,12 +69,12 @@ def plot_variable(figs, axs, args):
         data = np.sum(aj*bt, axis=-1)/btmag
 
     elif args.variable.name == 'fmach':
-        hn = hr(args.prefix, 'np', proc_n=args.n)
+        hn = hr(args.prefix, 'np', force_procs=args.n)
         para = hn.para
         n = hn.get_timestep(args.stepnum)[-1]
-        T = hr(args.prefix, 'temp_tot', proc_n=args.n).get_timestep(args.stepnum)[-1]
-        B = hr(args.prefix, 'bt', proc_n=args.n).get_timestep(args.stepnum)[-1]
-        u = hr(args.prefix, 'up', proc_n=args.n).get_timestep(args.stepnum)[-1]
+        T = hr(args.prefix, 'temp_tot', force_procs=args.n).get_timestep(args.stepnum)[-1]
+        B = hr(args.prefix, 'bt', force_procs=args.n).get_timestep(args.stepnum)[-1]
+        u = hr(args.prefix, 'up', force_procs=args.n).get_timestep(args.stepnum)[-1]
         ux = -u[:,:,:,0]
 
         n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
@@ -100,14 +100,14 @@ def plot_variable(figs, axs, args):
         data = ux/us_vf
 
     elif args.variable.name == 'upmag':
-        h = hr(args.prefix,'up', proc_n=args.n)
+        h = hr(args.prefix,'up', force_procs=args.n)
 
         data = h.get_timestep(args.stepnum)[-1]
         data = np.linalg.norm(data, axis=-1)
         para = h.para
 
     else: # Generic case. Plots the variable directly
-        h = hr(args.prefix,args.variable.name, proc_n=args.n)
+        h = hr(args.prefix,args.variable.name, force_procs=args.n)
         var_sanity_check(h.isScalar, args.variable.coordinate)
 
         data = h.get_timestep(args.stepnum)[-1]
@@ -167,8 +167,8 @@ def plot_1d_variable(fig, ax, args):
 
     ## Special cases first, the general case is the else block at the bottom
     if args.variable.name == 'pressure':
-        steps, times, n = get_1d_scalar(hr(args.prefix, 'np_tot', force_version=args.force_version, proc_n=args.n))
-        _, _, T = get_1d_scalar(hr(args.prefix, 'temp_tot', force_version=args.force_version, proc_n=args.n))
+        steps, times, n = get_1d_scalar(hr(args.prefix, 'np_tot', force_version=args.force_version, force_procs=args.n))
+        _, _, T = get_1d_scalar(hr(args.prefix, 'temp_tot', force_version=args.force_version, force_procs=args.n))
 
         # Convert units
         n = n/(1000.0**3)                    # 1/km^3 -> 1/m^3
@@ -189,9 +189,9 @@ def plot_1d_variable(fig, ax, args):
 
 
     elif args.variable.name == 'beta':
-        steps, times, n = get_1d_scalar(hr(args.prefix, 'np_tot', force_version=args.force_version, proc_n=args.n))
-        _, _, T = get_1d_scalar(hr(args.prefix, 'temp_tot', force_version=args.force_version, proc_n=args.n))
-        _, _, B = get_1d_vector(hr(args.prefix, 'bt', force_version=args.force_version, proc_n=args.n))
+        steps, times, n = get_1d_scalar(hr(args.prefix, 'np_tot', force_version=args.force_version, force_procs=args.n))
+        _, _, T = get_1d_scalar(hr(args.prefix, 'temp_tot', force_version=args.force_version, force_procs=args.n))
+        _, _, B = get_1d_vector(hr(args.prefix, 'bt', force_version=args.force_version, force_procs=args.n))
 
 
         # Convert units
@@ -217,7 +217,7 @@ def plot_1d_variable(fig, ax, args):
         ax.set_ylim(args.ylim)
 
     elif args.variable.name == 'bmag':
-        steps, times, B = get_1d_magnetude(hr(args.prefix, 'bt', force_version=args.force_version, proc_n=args.n))
+        steps, times, B = get_1d_magnetude(hr(args.prefix, 'bt', force_version=args.force_version, force_procs=args.n))
 
         B = B/q_over_m # ion gyrofrequency -> T
 
@@ -233,7 +233,7 @@ def plot_1d_variable(fig, ax, args):
         ax.set_ylim(args.ylim)
 
     elif args.variable.name == 'brat':
-        steps, times, B = get_1d_magnetude(hr(args.prefix, 'bt', force_version=args.force_version, proc_n=args.n))
+        steps, times, B = get_1d_magnetude(hr(args.prefix, 'bt', force_version=args.force_version, force_procs=args.n))
 
         B = B/q_over_m # ion gyrofrequency -> T
 
@@ -251,7 +251,7 @@ def plot_1d_variable(fig, ax, args):
         ax.set_ylim(args.ylim)
 
     elif args.variable.name == 'upmag':
-        steps, times, up = get_1d_magnetiude(hr(args.prefix, 'up', force_version=args.force_version, proc_n=args.n))
+        steps, times, up = get_1d_magnetiude(hr(args.prefix, 'up', force_version=args.force_version, force_procs=args.n))
 
         x = 1000*para['qx']/lambda_i # position in units of lambda_i
         t = times*omega_ci # time in units of omega_ci^-1
@@ -265,7 +265,7 @@ def plot_1d_variable(fig, ax, args):
         ax.set_ylim(args.ylim)
 
     else:
-        h = hr(args.prefix,args.variable.name, force_version=args.force_version, proc_n=args.n)
+        h = hr(args.prefix,args.variable.name, force_version=args.force_version, force_procs=args.n)
         var_sanity_check(h.isScalar, args.variable.coordinate)
 
         if h.isScalar:
